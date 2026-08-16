@@ -1,6 +1,10 @@
 package br.com.posjava.leochacarolli.it_inventory;
 
+import br.com.posjava.leochacarolli.it_inventory.exception.AssetNotFoundException;
+import br.com.posjava.leochacarolli.it_inventory.exception.DuplicateAssetException;
+import br.com.posjava.leochacarolli.it_inventory.exception.InvalidAssetDataException;
 import br.com.posjava.leochacarolli.it_inventory.model.*;
+import br.com.posjava.leochacarolli.it_inventory.service.AssetService;
 import org.springframework.boot.CommandLineRunner;
 import org.springframework.stereotype.Component;
 
@@ -132,6 +136,7 @@ public class Loader implements CommandLineRunner {
                 comercial
         );
 
+        //Chamada dos Métodos
         notebookModels.add(latitude5440);
         notebookModels.add(thinkPadE14);
 
@@ -146,6 +151,7 @@ public class Loader implements CommandLineRunner {
         nocAssets.add(nocnt01);
         comercialAssets.add(comercialnt01);
 
+        //Exibição dos dados
         System.out.println("Modelos de Notebooks:");
         notebookModels.forEach(System.out::println);
         System.out.println();
@@ -161,5 +167,137 @@ public class Loader implements CommandLineRunner {
         System.out.println("Ativos ThinkPad E14:");
         thinkPadE14Assets.forEach(System.out::println);
         System.out.println();
+
+
+        //Testes Parte 2
+
+        AssetService assetService = new AssetService();
+
+        Asset hrnt01updated = new Asset(
+                1L,
+                true,
+                "HRNT01 - Carolini",
+                "4IJ18H",
+                3500,
+                thinkPadE14,
+                humanResources
+        );
+
+        System.out.println("Teste adicionando e exibindo um ativo");
+        assetService.addAsset(hrnt01);
+        System.out.println(assetService.getAssetById(hrnt01.getId()));
+        System.out.println();
+
+        System.out.println("Teste adicionando novos ativos e exibindo todos");
+        assetService.addAsset(nocnt01);
+        assetService.addAsset(comercialnt01);
+        assetService.getAllAssets().forEach(System.out::println);
+        System.out.println();
+
+        System.out.println("Teste atualizando um ativo");
+        assetService.updateAsset(1L, hrnt01updated);
+        System.out.println(assetService.getAssetById(1L));
+        System.out.println();
+
+        System.out.println("Teste removendo um ativo");
+        assetService.removeAsset(2L);
+        assetService.getAllAssets().forEach(System.out::println);
+        System.out.println();
+
+        System.out.println("Testando Exceptions");
+
+        System.out.println("Teste Localizando por ID inexistente");
+        try {
+            assetService.getAssetById(99L);
+        } catch (AssetNotFoundException e) {
+            System.out.println(e.getMessage());
+            System.out.println();
+        }
+
+        System.out.println("Teste removendo ID inexistente");
+        try {
+            assetService.removeAsset(99L);
+        } catch (AssetNotFoundException e) {
+            System.out.println(e.getMessage());
+            System.out.println();
+        }
+
+        System.out.println("Teste atualizando ID inexistente");
+        try {
+            assetService.updateAsset(99L, hrnt01updated);
+        } catch (AssetNotFoundException e) {
+            System.out.println(e.getMessage());
+            System.out.println();
+        }
+
+        System.out.println("Teste adicionando ativo nulo");
+        try {
+            assetService.addAsset(null);
+        } catch (InvalidAssetDataException e){
+            System.out.println(e.getMessage());
+            System.out.println();
+        }
+
+        System.out.println("Teste adicionando ID nulo");
+        Asset assetComIdNulo = new Asset(
+                null,
+                true,
+                "Teste",
+                "4IJ18H",
+                3500,
+                thinkPadE14,
+                humanResources
+        );
+
+        try {
+            assetService.addAsset(assetComIdNulo);
+        } catch (InvalidAssetDataException e){
+            System.out.println(e.getMessage());
+            System.out.println();
+        }
+
+        System.out.println("Teste adicionando nome nulo");
+        Asset assetComNomeNulo = new Asset(
+                1L,
+                true,
+                null,
+                "4IJ18H",
+                3500,
+                thinkPadE14,
+                humanResources
+        );
+
+        try {
+            assetService.addAsset(assetComNomeNulo);
+        } catch (InvalidAssetDataException e){
+            System.out.println(e.getMessage());
+            System.out.println();
+        }
+
+        System.out.println("Teste adicionando com valor negativo");
+        Asset assetComValorNegativo = new Asset(
+                1L,
+                true,
+                "Teste",
+                "4IJ18H",
+                -2000,
+                thinkPadE14,
+                humanResources
+        );
+
+        try {
+            assetService.addAsset(assetComValorNegativo);
+        } catch (InvalidAssetDataException e){
+            System.out.println(e.getMessage());
+            System.out.println();
+        }
+
+        System.out.println("Teste adicionando ativo duplicado");
+        try {
+            assetService.addAsset(hrnt01);
+        } catch (DuplicateAssetException e){
+            System.out.println(e.getMessage());
+            System.out.println();
+        }
     }
 }
