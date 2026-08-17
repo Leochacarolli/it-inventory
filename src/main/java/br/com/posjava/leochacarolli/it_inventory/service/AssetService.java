@@ -5,10 +5,7 @@ import br.com.posjava.leochacarolli.it_inventory.exception.DuplicateAssetExcepti
 import br.com.posjava.leochacarolli.it_inventory.exception.InvalidAssetDataException;
 import br.com.posjava.leochacarolli.it_inventory.model.Asset;
 
-import java.util.ArrayList;
-import java.util.HashMap;
-import java.util.List;
-import java.util.Map;
+import java.util.*;
 
 public class AssetService {
 
@@ -46,10 +43,6 @@ public class AssetService {
         }
     }
 
-//    public Asset getAssetByName(String name) {
-//        return assets.get(name);
-//    }
-
     public List<Asset> getAllAssets(){
         return new ArrayList<>(assets.values());
     }
@@ -68,5 +61,41 @@ public class AssetService {
         } else {
             throw new AssetNotFoundException("Não foi possível localizar e alterar o ID: " + id);
         }
+    }
+
+    public List<Asset> getActiveAssets(){
+        return assets.values()
+                .stream()
+                .filter(asset -> asset.isActive())
+                .toList();
+    }
+
+    public List<Asset> getInactiveAssets(){
+        return assets.values()
+                .stream()
+                .filter(asset -> asset.isActive() == false)
+                .toList();
+    }
+
+    public List<Asset> getOrderedAssetsByName(){
+        return assets.values()
+                .stream()
+                .sorted(Comparator.comparing(asset -> asset.getName()))
+                .toList();
+    }
+
+    public Asset getAssetByName(String name) {
+        return assets.values()
+                .stream()
+                .filter(asset -> asset.getName().contains(name.toLowerCase()))
+                .findFirst()
+                .orElseThrow(() -> new AssetNotFoundException("Ativo não encontrado para o nome: " + name));
+    }
+
+    public List<String> getAllAssetNames() {
+        return assets.values()
+                .stream()
+                .map(asset -> asset.getName())
+                .toList();
     }
 }

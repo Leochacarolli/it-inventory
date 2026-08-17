@@ -17,7 +17,7 @@ public class Loader implements CommandLineRunner {
     @Override
     public void run(String... args) throws Exception {
 
-        //Listas criadas
+        // Listas utilizadas nos relacionamentos
         List<AssetModel> notebookModels = new ArrayList<>();
         List<AssetModel> desktopModels = new ArrayList<>();
         List<AssetModel> dellModels = new ArrayList<>();
@@ -28,7 +28,8 @@ public class Loader implements CommandLineRunner {
         List<Asset> nocAssets = new ArrayList<>();
         List<Asset> comercialAssets = new ArrayList<>();
 
-        //Objetos criados
+
+        // Criação dos objetos
         Category notebook = new Category(
                 1L,
                 true,
@@ -136,7 +137,8 @@ public class Loader implements CommandLineRunner {
                 comercial
         );
 
-        //Chamada dos Métodos
+
+        // Montagem dos relacionamentos
         notebookModels.add(latitude5440);
         notebookModels.add(thinkPadE14);
 
@@ -151,31 +153,32 @@ public class Loader implements CommandLineRunner {
         nocAssets.add(nocnt01);
         comercialAssets.add(comercialnt01);
 
-        //Exibição dos dados
-        System.out.println("Modelos de Notebooks:");
-        notebookModels.forEach(System.out::println);
-        System.out.println();
-        System.out.println("Modelos Dell:");
-        dellModels.forEach(System.out::println);
-        System.out.println();
-        System.out.println("Ativos Latitude 5440:");
-        latitude5440Assets.forEach(System.out::println);
-        System.out.println();
-        System.out.println("Ativos NOC:");
-        nocAssets.forEach(System.out::println);
-        System.out.println();
-        System.out.println("Ativos ThinkPad E14:");
-        thinkPadE14Assets.forEach(System.out::println);
-        System.out.println();
 
-
-        //Testes Parte 2
-
+        // Asset Service
         AssetService assetService = new AssetService();
+
+
+        // Cadastro inicial dos ativos
+        assetService.addAsset(hrnt01);
+        assetService.addAsset(nocnt01);
+        assetService.addAsset(comercialnt01);
+
+
+        // CRUD
+
+        System.out.println("Listando todos os ativos cadastrados");
+        assetService.getAllAssets().forEach(System.out::println);
+        System.out.println();
+
+
+        System.out.println("Buscando ativo pelo ID");
+        System.out.println(assetService.getAssetById(1L));
+        System.out.println();
+
 
         Asset hrnt01updated = new Asset(
                 1L,
-                true,
+                false,
                 "HRNT01 - Carolini",
                 "4IJ18H",
                 3500,
@@ -183,36 +186,60 @@ public class Loader implements CommandLineRunner {
                 humanResources
         );
 
-        System.out.println("Teste adicionando e exibindo um ativo");
-        assetService.addAsset(hrnt01);
-        System.out.println(assetService.getAssetById(hrnt01.getId()));
-        System.out.println();
-
-        System.out.println("Teste adicionando novos ativos e exibindo todos");
-        assetService.addAsset(nocnt01);
-        assetService.addAsset(comercialnt01);
-        assetService.getAllAssets().forEach(System.out::println);
-        System.out.println();
-
-        System.out.println("Teste atualizando um ativo");
+        System.out.println("Atualizando ativo");
         assetService.updateAsset(1L, hrnt01updated);
         System.out.println(assetService.getAssetById(1L));
         System.out.println();
 
-        System.out.println("Teste removendo um ativo");
+
+        // Streams e Lambdas
+
+        System.out.println("Listando todos os ativos com status ativo");
+        assetService.getActiveAssets().forEach(System.out::println);
+        System.out.println();
+
+
+        System.out.println("Listando todos os ativos com status inativo");
+        assetService.getInactiveAssets().forEach(System.out::println);
+        System.out.println();
+
+
+        System.out.println("Listando ativos ordenados por nome");
+        assetService.getOrderedAssetsByName().forEach(System.out::println);
+        System.out.println();
+
+
+        System.out.println("Fazendo uma busca de ativo por nome");
+        System.out.println(assetService.getAssetByName("HRNT01"));
+        System.out.println();
+
+
+        System.out.println("Listando somente os nomes dos ativos");
+        assetService.getAllAssetNames().forEach(System.out::println);
+        System.out.println();
+
+
+        // Remoção após os testes com Streams
+        System.out.println("Removendo um ativo");
         assetService.removeAsset(2L);
         assetService.getAllAssets().forEach(System.out::println);
         System.out.println();
 
-        System.out.println("Testando Exceptions");
 
-        System.out.println("Teste Localizando por ID inexistente");
+        // Testes de Exceptions
+
+        System.out.println("Testando Exceptions");
+        System.out.println();
+
+
+        System.out.println("Teste localizando por ID inexistente");
         try {
             assetService.getAssetById(99L);
         } catch (AssetNotFoundException e) {
             System.out.println(e.getMessage());
             System.out.println();
         }
+
 
         System.out.println("Teste removendo ID inexistente");
         try {
@@ -222,6 +249,7 @@ public class Loader implements CommandLineRunner {
             System.out.println();
         }
 
+
         System.out.println("Teste atualizando ID inexistente");
         try {
             assetService.updateAsset(99L, hrnt01updated);
@@ -230,15 +258,18 @@ public class Loader implements CommandLineRunner {
             System.out.println();
         }
 
+
         System.out.println("Teste adicionando ativo nulo");
         try {
             assetService.addAsset(null);
-        } catch (InvalidAssetDataException e){
+        } catch (InvalidAssetDataException e) {
             System.out.println(e.getMessage());
             System.out.println();
         }
 
+
         System.out.println("Teste adicionando ID nulo");
+
         Asset assetComIdNulo = new Asset(
                 null,
                 true,
@@ -251,14 +282,16 @@ public class Loader implements CommandLineRunner {
 
         try {
             assetService.addAsset(assetComIdNulo);
-        } catch (InvalidAssetDataException e){
+        } catch (InvalidAssetDataException e) {
             System.out.println(e.getMessage());
             System.out.println();
         }
 
+
         System.out.println("Teste adicionando nome nulo");
+
         Asset assetComNomeNulo = new Asset(
-                1L,
+                4L,
                 true,
                 null,
                 "4IJ18H",
@@ -269,14 +302,36 @@ public class Loader implements CommandLineRunner {
 
         try {
             assetService.addAsset(assetComNomeNulo);
-        } catch (InvalidAssetDataException e){
+        } catch (InvalidAssetDataException e) {
             System.out.println(e.getMessage());
             System.out.println();
         }
 
+
+        System.out.println("Teste adicionando nome vazio");
+
+        Asset assetComNomeVazio = new Asset(
+                5L,
+                true,
+                "   ",
+                "4IJ18H",
+                3500,
+                thinkPadE14,
+                humanResources
+        );
+
+        try {
+            assetService.addAsset(assetComNomeVazio);
+        } catch (InvalidAssetDataException e) {
+            System.out.println(e.getMessage());
+            System.out.println();
+        }
+
+
         System.out.println("Teste adicionando com valor negativo");
+
         Asset assetComValorNegativo = new Asset(
-                1L,
+                6L,
                 true,
                 "Teste",
                 "4IJ18H",
@@ -287,15 +342,17 @@ public class Loader implements CommandLineRunner {
 
         try {
             assetService.addAsset(assetComValorNegativo);
-        } catch (InvalidAssetDataException e){
+        } catch (InvalidAssetDataException e) {
             System.out.println(e.getMessage());
             System.out.println();
         }
 
+
         System.out.println("Teste adicionando ativo duplicado");
+
         try {
-            assetService.addAsset(hrnt01);
-        } catch (DuplicateAssetException e){
+            assetService.addAsset(hrnt01updated);
+        } catch (DuplicateAssetException e) {
             System.out.println(e.getMessage());
             System.out.println();
         }
