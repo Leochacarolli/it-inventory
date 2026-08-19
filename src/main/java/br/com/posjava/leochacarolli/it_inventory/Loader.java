@@ -14,8 +14,15 @@ import java.util.List;
 @Component
 public class Loader implements CommandLineRunner {
 
+    private final AssetService assetService;
+
+    public Loader(AssetService assetService) {
+        this.assetService = assetService;
+    }
+
     @Override
     public void run(String... args) throws Exception {
+
 
         // Listas utilizadas nos relacionamentos
         List<AssetModel> notebookModels = new ArrayList<>();
@@ -152,10 +159,6 @@ public class Loader implements CommandLineRunner {
         humanResourcesAssets.add(hrnt01);
         nocAssets.add(nocnt01);
         comercialAssets.add(comercialnt01);
-
-
-        // Asset Service
-        AssetService assetService = new AssetService();
 
 
         // Cadastro inicial dos ativos

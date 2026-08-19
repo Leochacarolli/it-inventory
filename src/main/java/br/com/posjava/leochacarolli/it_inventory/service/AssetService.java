@@ -4,9 +4,11 @@ import br.com.posjava.leochacarolli.it_inventory.exception.AssetNotFoundExceptio
 import br.com.posjava.leochacarolli.it_inventory.exception.DuplicateAssetException;
 import br.com.posjava.leochacarolli.it_inventory.exception.InvalidAssetDataException;
 import br.com.posjava.leochacarolli.it_inventory.model.Asset;
+import org.springframework.stereotype.Service;
 
 import java.util.*;
 
+@Service
 public class AssetService {
 
     private final Map<Long, Asset> assets = new HashMap<>();
@@ -87,7 +89,7 @@ public class AssetService {
     public Asset getAssetByName(String name) {
         return assets.values()
                 .stream()
-                .filter(asset -> asset.getName().contains(name.toLowerCase()))
+                .filter(asset -> asset.getName().toLowerCase().contains(name.toLowerCase()))
                 .findFirst()
                 .orElseThrow(() -> new AssetNotFoundException("Ativo não encontrado para o nome: " + name));
     }
