@@ -4,7 +4,9 @@ import br.com.posjava.leochacarolli.it_inventory.exception.AssetNotFoundExceptio
 import br.com.posjava.leochacarolli.it_inventory.exception.DuplicateAssetException;
 import br.com.posjava.leochacarolli.it_inventory.exception.InvalidAssetDataException;
 import br.com.posjava.leochacarolli.it_inventory.model.*;
+import br.com.posjava.leochacarolli.it_inventory.service.AssetModelService;
 import br.com.posjava.leochacarolli.it_inventory.service.AssetService;
+import br.com.posjava.leochacarolli.it_inventory.service.LocationService;
 import org.springframework.boot.CommandLineRunner;
 import org.springframework.stereotype.Component;
 
@@ -15,9 +17,13 @@ import java.util.List;
 public class Loader implements CommandLineRunner {
 
     private final AssetService assetService;
+    private final AssetModelService assetModelService;
+    private final LocationService locationService;
 
-    public Loader(AssetService assetService) {
+    public Loader(AssetService assetService, AssetModelService assetModelService, LocationService locationService) {
         this.assetService = assetService;
+        this.assetModelService = assetModelService;
+        this.locationService = locationService;
     }
 
     @Override
@@ -161,10 +167,21 @@ public class Loader implements CommandLineRunner {
         comercialAssets.add(comercialnt01);
 
 
+        // Cadastro inicial dos modelos
+        assetModelService.addAssetModel(latitude5440);
+        assetModelService.addAssetModel(thinkPadE14);
+
+
         // Cadastro inicial dos ativos
         assetService.addAsset(hrnt01);
         assetService.addAsset(nocnt01);
         assetService.addAsset(comercialnt01);
+
+
+        // Cadastro inicial das localizações
+        locationService.addLocation(noc);
+        locationService.addLocation(comercial);
+        locationService.addLocation(humanResources);
 
 
         // CRUD
@@ -359,5 +376,9 @@ public class Loader implements CommandLineRunner {
             System.out.println(e.getMessage());
             System.out.println();
         }
+
+
+        System.out.println("Teste método getAssetModelById");
+        System.out.println(assetModelService.getAssetModelById(2L));
     }
 }
