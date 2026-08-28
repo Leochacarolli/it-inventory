@@ -14,12 +14,12 @@ public class AssetService {
     private final Map<Long, Asset> assets = new HashMap<>();
 
     public void addAsset(Asset asset) {
-        if (asset == null) {
+        if (asset == null){
             throw new InvalidAssetDataException("O ativo não pode ser nulo");
         }
 
         if (asset.getId() == null) {
-            throw new InvalidAssetDataException("O ID do ativo não pode ser nulo");
+            asset.setId(generateNextId());
         }
 
         if (asset.getName() == null || asset.getName().isBlank()) {
@@ -99,5 +99,13 @@ public class AssetService {
                 .stream()
                 .map(asset -> asset.getName())
                 .toList();
+    }
+
+    private Long generateNextId(){
+        if (assets.isEmpty()) {
+            return 1L;
+        }
+
+        return Collections.max(assets.keySet()) + 1;
     }
 }
