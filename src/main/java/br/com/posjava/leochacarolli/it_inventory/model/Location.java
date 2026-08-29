@@ -1,13 +1,23 @@
 package br.com.posjava.leochacarolli.it_inventory.model;
 
+import jakarta.persistence.Entity;
+import jakarta.persistence.OneToMany;
+
 import java.util.List;
 
+@Entity
 public class Location extends BaseEntity{
 
     private String name;
     private int floor;
     private String description;
+
+    @OneToMany(mappedBy = "location")
     private List<Asset> assets;
+
+    public Location() {
+
+    }
 
     public Location(Long id, boolean active, String name, int floor, String description, List<Asset> assets) {
         super(id, active);

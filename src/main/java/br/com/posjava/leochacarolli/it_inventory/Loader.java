@@ -4,9 +4,7 @@ import br.com.posjava.leochacarolli.it_inventory.exception.AssetNotFoundExceptio
 import br.com.posjava.leochacarolli.it_inventory.exception.DuplicateAssetException;
 import br.com.posjava.leochacarolli.it_inventory.exception.InvalidAssetDataException;
 import br.com.posjava.leochacarolli.it_inventory.model.*;
-import br.com.posjava.leochacarolli.it_inventory.service.AssetModelService;
-import br.com.posjava.leochacarolli.it_inventory.service.AssetService;
-import br.com.posjava.leochacarolli.it_inventory.service.LocationService;
+import br.com.posjava.leochacarolli.it_inventory.service.*;
 import org.springframework.boot.CommandLineRunner;
 import org.springframework.stereotype.Component;
 
@@ -19,11 +17,15 @@ public class Loader implements CommandLineRunner {
     private final AssetService assetService;
     private final AssetModelService assetModelService;
     private final LocationService locationService;
+    private final CategoryService categoryService;
+    private final ManufacturerService manufacturerService;
 
-    public Loader(AssetService assetService, AssetModelService assetModelService, LocationService locationService) {
+    public Loader(AssetService assetService, AssetModelService assetModelService, LocationService locationService, CategoryService categoryService, ManufacturerService manufacturerService) {
         this.assetService = assetService;
         this.assetModelService = assetModelService;
         this.locationService = locationService;
+        this.categoryService = categoryService;
+        this.manufacturerService = manufacturerService;
     }
 
     @Override
@@ -44,7 +46,7 @@ public class Loader implements CommandLineRunner {
 
         // Criação dos objetos
         Category notebook = new Category(
-                1L,
+                null,
                 true,
                 "Notebook",
                 "",
@@ -52,7 +54,7 @@ public class Loader implements CommandLineRunner {
         );
 
         Category desktop = new Category(
-                2L,
+                null,
                 true,
                 "Desktop",
                 "",
@@ -60,7 +62,7 @@ public class Loader implements CommandLineRunner {
         );
 
         Manufacturer dell = new Manufacturer(
-                1L,
+                null,
                 true,
                 "Dell",
                 "USA",
@@ -68,7 +70,7 @@ public class Loader implements CommandLineRunner {
         );
 
         Manufacturer lenovo = new Manufacturer(
-                2L,
+                null,
                 true,
                 "Lenovo",
                 "China",
@@ -76,7 +78,7 @@ public class Loader implements CommandLineRunner {
         );
 
         AssetModel latitude5440 = new AssetModel(
-                1L,
+                null,
                 true,
                 "Latitude 5440",
                 notebook,
@@ -85,7 +87,7 @@ public class Loader implements CommandLineRunner {
         );
 
         AssetModel thinkPadE14 = new AssetModel(
-                2L,
+                null,
                 true,
                 "ThinkPad E14",
                 notebook,
@@ -94,7 +96,7 @@ public class Loader implements CommandLineRunner {
         );
 
         Location humanResources = new Location(
-                1L,
+                null,
                 true,
                 "Human Resources",
                 13,
@@ -103,7 +105,7 @@ public class Loader implements CommandLineRunner {
         );
 
         Location noc = new Location(
-                2L,
+                null,
                 true,
                 "NOC",
                 1,
@@ -112,7 +114,7 @@ public class Loader implements CommandLineRunner {
         );
 
         Location comercial = new Location(
-                3L,
+                null,
                 true,
                 "Comercial",
                 13,
@@ -121,7 +123,7 @@ public class Loader implements CommandLineRunner {
         );
 
         Asset hrnt01 = new Asset(
-                1L,
+                null,
                 true,
                 "HRNT01",
                 "4IJ18H",
@@ -131,7 +133,7 @@ public class Loader implements CommandLineRunner {
         );
 
         Asset nocnt01 = new Asset(
-                2L,
+                null,
                 true,
                 "NOCNT01",
                 "9YTR4O",
@@ -141,7 +143,7 @@ public class Loader implements CommandLineRunner {
         );
 
         Asset comercialnt01 = new Asset(
-                3L,
+                null,
                 true,
                 "COMERCIALNT01",
                 "42JLRW",
@@ -152,6 +154,13 @@ public class Loader implements CommandLineRunner {
 
 
         // Montagem dos relacionamentos
+
+        categoryService.addCategory(notebook);
+        categoryService.addCategory(desktop);
+
+        manufacturerService.addManufacturer(dell);
+        manufacturerService.addManufacturer(lenovo);
+
         notebookModels.add(latitude5440);
         notebookModels.add(thinkPadE14);
 
@@ -172,16 +181,16 @@ public class Loader implements CommandLineRunner {
         assetModelService.addAssetModel(thinkPadE14);
 
 
+        // Cadastro inicial das localizações
+        humanResources = locationService.addLocation(humanResources);
+        noc = locationService.addLocation(noc);
+        comercial = locationService.addLocation(comercial);
+
+
         // Cadastro inicial dos ativos
         assetService.addAsset(hrnt01);
         assetService.addAsset(nocnt01);
         assetService.addAsset(comercialnt01);
-
-
-        // Cadastro inicial das localizações
-        locationService.addLocation(noc);
-        locationService.addLocation(comercial);
-        locationService.addLocation(humanResources);
 
 
         // CRUD

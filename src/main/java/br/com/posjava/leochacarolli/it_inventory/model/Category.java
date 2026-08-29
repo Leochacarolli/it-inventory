@@ -1,12 +1,22 @@
 package br.com.posjava.leochacarolli.it_inventory.model;
 
+import jakarta.persistence.Entity;
+import jakarta.persistence.OneToMany;
+
 import java.util.List;
 
+@Entity
 public class Category extends BaseEntity{
 
     private String name;
     private String description;
+
+    @OneToMany(mappedBy = "category")
     private List<AssetModel> models;
+
+    public Category() {
+
+    }
 
     public Category(Long id, boolean active, String name, String description, List<AssetModel> models) {
         super(id, active);

@@ -1,12 +1,23 @@
 package br.com.posjava.leochacarolli.it_inventory.model;
 
+import jakarta.persistence.Entity;
+import jakarta.persistence.ManyToOne;
+
+@Entity
 public class Asset extends BaseEntity{
 
     private String name;
     private String serialNumber;
     private double purchaseValue;
+
+    @ManyToOne
     private AssetModel model;
+
+    @ManyToOne
     private Location location;
+
+    public Asset() {
+    }
 
     public Asset(Long id, boolean active, String name, String serialNumber, double purchaseValue, AssetModel model, Location location) {
         super(id, active);

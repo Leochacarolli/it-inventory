@@ -4,6 +4,7 @@ import br.com.posjava.leochacarolli.it_inventory.exception.DuplicateLocationExce
 import br.com.posjava.leochacarolli.it_inventory.exception.InvalidLocationDataException;
 import br.com.posjava.leochacarolli.it_inventory.exception.LocationNotFoundException;
 import br.com.posjava.leochacarolli.it_inventory.model.Location;
+import br.com.posjava.leochacarolli.it_inventory.repository.LocationRepository;
 import org.springframework.stereotype.Service;
 
 import java.util.HashMap;
@@ -13,6 +14,11 @@ import java.util.Map;
 public class LocationService {
 
     private final Map<Long, Location> locations = new HashMap<>();
+    private final LocationRepository locationRepository;
+
+    public LocationService(LocationRepository locationRepository) {
+        this.locationRepository = locationRepository;
+    }
 
     public Location getLocationById(Long id){
         if (locations.containsKey(id)) {
@@ -22,13 +28,9 @@ public class LocationService {
         }
     }
 
-    public void addLocation(Location location) {
+    public Location addLocation(Location location) {
         if (location == null) {
             throw new InvalidLocationDataException("A localização não pode ser nulo");
-        }
-
-        if (location.getId() == null) {
-            throw new InvalidLocationDataException("O ID da localização não pode ser nulo");
         }
 
         if (location.getName() == null || location.getName().isBlank()) {
@@ -39,6 +41,6 @@ public class LocationService {
             throw new DuplicateLocationException("Já existe uma localização com ID: " + location.getId());
         }
 
-        locations.put(location.getId(), location);
+        return locationRepository.save(location);
     }
 }

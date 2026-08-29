@@ -4,6 +4,7 @@ import br.com.posjava.leochacarolli.it_inventory.exception.AssetNotFoundExceptio
 import br.com.posjava.leochacarolli.it_inventory.exception.DuplicateAssetException;
 import br.com.posjava.leochacarolli.it_inventory.exception.InvalidAssetDataException;
 import br.com.posjava.leochacarolli.it_inventory.model.Asset;
+import br.com.posjava.leochacarolli.it_inventory.repository.AssetRepository;
 import org.springframework.stereotype.Service;
 
 import java.util.*;
@@ -11,15 +12,16 @@ import java.util.*;
 @Service
 public class AssetService {
 
+    private final AssetRepository assetRepository;
     private final Map<Long, Asset> assets = new HashMap<>();
+
+    public AssetService(AssetRepository assetRepository) {
+        this.assetRepository = assetRepository;
+    }
 
     public void addAsset(Asset asset) {
         if (asset == null){
             throw new InvalidAssetDataException("O ativo não pode ser nulo");
-        }
-
-        if (asset.getId() == null) {
-            asset.setId(generateNextId());
         }
 
         if (asset.getName() == null || asset.getName().isBlank()) {
@@ -34,7 +36,7 @@ public class AssetService {
             throw new DuplicateAssetException("Já existe um ativo com ID: " + asset.getId());
         }
 
-        assets.put(asset.getId(), asset);
+        assetRepository.save(asset);
     }
 
     public Asset getAssetById(Long id) {
@@ -46,7 +48,7 @@ public class AssetService {
     }
 
     public List<Asset> getAllAssets(){
-        return new ArrayList<>(assets.values());
+        return assetRepository.findAll();
     }
 
     public void removeAsset(Long id){

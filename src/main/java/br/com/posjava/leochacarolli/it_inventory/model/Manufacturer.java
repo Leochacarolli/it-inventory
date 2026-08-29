@@ -1,12 +1,22 @@
 package br.com.posjava.leochacarolli.it_inventory.model;
 
+import jakarta.persistence.Entity;
+import jakarta.persistence.OneToMany;
+
 import java.util.List;
 
+@Entity
 public class Manufacturer extends BaseEntity {
 
     private String name;
     private String country;
+
+    @OneToMany(mappedBy = "manufacturer")
     private List<AssetModel> models;
+
+    public Manufacturer() {
+
+    }
 
     public Manufacturer(Long id, boolean active, String name, String country, List<AssetModel> models) {
         super(id, active);
