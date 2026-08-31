@@ -1,12 +1,25 @@
 package br.com.posjava.leochacarolli.it_inventory.dto;
 
+import jakarta.validation.constraints.NotBlank;
+import jakarta.validation.constraints.PositiveOrZero;
+import jakarta.validation.constraints.NotNull;
+
 public class AssetRequestDTO {
 
     private boolean active;
+
+    @NotBlank
     private String name;
+
     private String serialNumber;
+
+    @PositiveOrZero
     private double purchaseValue;
+
+    @NotNull
     private Long assetModelId;
+
+    @NotNull
     private Long locationId;
 
     public boolean isActive() {

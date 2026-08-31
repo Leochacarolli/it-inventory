@@ -8,6 +8,7 @@ import br.com.posjava.leochacarolli.it_inventory.model.Location;
 import br.com.posjava.leochacarolli.it_inventory.service.AssetModelService;
 import br.com.posjava.leochacarolli.it_inventory.service.AssetService;
 import br.com.posjava.leochacarolli.it_inventory.service.LocationService;
+import jakarta.validation.Valid;
 import org.springframework.http.HttpStatus;
 import org.springframework.web.bind.annotation.*;
 
@@ -47,9 +48,43 @@ public class AssetController {
     }
 
 
+    @GetMapping("/active")
+    public List<AssetResponseDTO> getActiveAssets() {
+        return assetService.getActiveAssets()
+                .stream()
+                .map(AssetResponseDTO::new)
+                .toList();
+    }
+
+
+    @GetMapping("/inactive")
+    public List<AssetResponseDTO> getInactiveAssets() {
+        return assetService.getInactiveAssets()
+                .stream()
+                .map(AssetResponseDTO::new)
+                .toList();
+    }
+
+
+    @GetMapping("/ordered")
+    public List<AssetResponseDTO> getOrderedAssetsByName() {
+        return assetService.getOrderedAssetsByName()
+                .stream()
+                .map(AssetResponseDTO::new)
+                .toList();
+    }
+
+
+    @GetMapping("/search")
+    public AssetResponseDTO getAssetByName(@RequestParam String name) {
+        Asset asset = assetService.getAssetByName(name);
+        return new AssetResponseDTO(asset);
+    }
+
+
     @PostMapping
     @ResponseStatus(HttpStatus.CREATED)
-    public AssetResponseDTO createAsset(@RequestBody AssetRequestDTO request){
+    public AssetResponseDTO createAsset(@Valid @RequestBody AssetRequestDTO request){
         AssetModel model = assetModelService.getAssetModelById(request.getAssetModelId());
         Location location = locationService.getLocationById(request.getLocationId());
 
@@ -69,7 +104,7 @@ public class AssetController {
     }
 
     @PutMapping("/{id}")
-    public AssetResponseDTO updateAsset(@PathVariable Long id, @RequestBody AssetRequestDTO request) {
+    public AssetResponseDTO updateAsset(@PathVariable Long id, @Valid @RequestBody AssetRequestDTO request) {
         AssetModel model = assetModelService.getAssetModelById(request.getAssetModelId());
         Location location = locationService.getLocationById(request.getLocationId());
 

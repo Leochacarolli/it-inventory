@@ -2,8 +2,6 @@ package br.com.posjava.leochacarolli.it_inventory.dto;
 
 import br.com.posjava.leochacarolli.it_inventory.model.Asset;
 
-import java.math.BigDecimal;
-
 public class AssetResponseDTO {
 
     private Long id;
