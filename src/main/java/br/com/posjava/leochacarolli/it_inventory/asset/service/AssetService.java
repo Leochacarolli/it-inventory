@@ -4,6 +4,11 @@ import br.com.posjava.leochacarolli.it_inventory.asset.exception.AssetNotFoundEx
 import br.com.posjava.leochacarolli.it_inventory.asset.exception.InvalidAssetDataException;
 import br.com.posjava.leochacarolli.it_inventory.asset.model.Asset;
 import br.com.posjava.leochacarolli.it_inventory.asset.repository.AssetRepository;
+import br.com.posjava.leochacarolli.it_inventory.asset.dto.AssetRequestDTO;
+import br.com.posjava.leochacarolli.it_inventory.catalog.model.AssetModel;
+import br.com.posjava.leochacarolli.it_inventory.catalog.service.AssetModelService;
+import br.com.posjava.leochacarolli.it_inventory.location.model.Location;
+import br.com.posjava.leochacarolli.it_inventory.location.service.LocationService;
 import org.springframework.stereotype.Service;
 
 import java.util.*;
@@ -12,9 +17,39 @@ import java.util.*;
 public class AssetService {
 
     private final AssetRepository assetRepository;
+    private final AssetModelService assetModelService;
+    private final LocationService locationService;
 
-    public AssetService(AssetRepository assetRepository) {
+    public AssetService(AssetRepository assetRepository, AssetModelService assetModelService, LocationService locationService) {
         this.assetRepository = assetRepository;
+        this.assetModelService = assetModelService;
+        this.locationService = locationService;
+    }
+
+    public Asset createAsset(AssetRequestDTO request) {
+        AssetModel model =
+                assetModelService.getAssetModelById(
+                        request.getAssetModelId()
+                );
+
+        Location location =
+                locationService.getLocationById(
+                        request.getLocationId()
+                );
+
+        Asset asset = new Asset(
+                null,
+                request.isActive(),
+                request.getName(),
+                request.getSerialNumber(),
+                request.getPurchaseValue(),
+                model,
+                location
+        );
+
+        addAsset(asset);
+
+        return asset;
     }
 
     public void addAsset(Asset asset) {
@@ -49,13 +84,30 @@ public class AssetService {
         assetRepository.deleteById(id);
     }
 
-    public void updateAsset(Long id, Asset asset) {
-        if (!assetRepository.existsById(id)) {
-            throw new AssetNotFoundException("Não foi possível localizar e alterar o ID: " + id);
-        }
+    public Asset updateAsset(
+            Long id,
+            AssetRequestDTO request) {
 
-        asset.setId(id);
-        assetRepository.save(asset);
+        Asset asset = getAssetById(id);
+
+        AssetModel model =
+                assetModelService.getAssetModelById(
+                        request.getAssetModelId()
+                );
+
+        Location location =
+                locationService.getLocationById(
+                        request.getLocationId()
+                );
+
+        asset.setActive(request.isActive());
+        asset.setName(request.getName());
+        asset.setSerialNumber(request.getSerialNumber());
+        asset.setPurchaseValue(request.getPurchaseValue());
+        asset.setModel(model);
+        asset.setLocation(location);
+
+        return assetRepository.save(asset);
     }
 
     public List<Asset> getActiveAssets(){
