@@ -953,8 +953,6 @@ etapa-1
 
 Essa versão representa a aplicação organizada antes da separação de qualquer funcionalidade em um serviço independente.
 
-> Caso o mesmo repositório da disciplina anterior esteja sendo reutilizado e já exista uma tag com esse nome, a estratégia de versionamento deverá ser definida antes da criação da nova tag.
-
 ---
 
 # Autor
