@@ -1,8 +1,8 @@
 package br.com.posjava.leochacarolli.it_inventory.asset.model;
 
 import br.com.posjava.leochacarolli.it_inventory.catalog.model.AssetModel;
-import br.com.posjava.leochacarolli.it_inventory.location.model.Location;
 import br.com.posjava.leochacarolli.it_inventory.shared.model.BaseEntity;
+import jakarta.persistence.Column;
 import jakarta.persistence.Entity;
 import jakarta.persistence.ManyToOne;
 
@@ -16,29 +16,38 @@ public class Asset extends BaseEntity {
     @ManyToOne
     private AssetModel model;
 
-    @ManyToOne
-    private Location location;
+    @Column(nullable = false)
+    private Long locationId;
 
     public Asset() {
     }
 
-    public Asset(Long id, boolean active, String name, String serialNumber, double purchaseValue, AssetModel model, Location location) {
+    public Asset(
+            Long id,
+            boolean active,
+            String name,
+            String serialNumber,
+            double purchaseValue,
+            AssetModel model,
+            Long locationId) {
+
         super(id, active);
         this.name = name;
         this.serialNumber = serialNumber;
         this.purchaseValue = purchaseValue;
         this.model = model;
-        this.location = location;
+        this.locationId = locationId;
     }
 
     @Override
     public String toString() {
-        return super.toString() + String.format(", Nome = %s, Serial Number = %s, Valor de Compra = %.2f, Modelo = %s, Localização = %s",
+        return super.toString() + String.format(
+                ", Nome = %s, Serial Number = %s, Valor de Compra = %.2f, Modelo = %s, Location ID = %d",
                 name,
                 serialNumber,
                 purchaseValue,
                 model.getName(),
-                location.getName()
+                locationId
         );
     }
 
@@ -74,11 +83,11 @@ public class Asset extends BaseEntity {
         this.model = model;
     }
 
-    public Location getLocation() {
-        return location;
+    public Long getLocationId() {
+        return locationId;
     }
 
-    public void setLocation(Location location) {
-        this.location = location;
+    public void setLocationId(Long locationId) {
+        this.locationId = locationId;
     }
 }

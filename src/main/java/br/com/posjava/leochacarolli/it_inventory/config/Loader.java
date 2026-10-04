@@ -8,8 +8,6 @@ import br.com.posjava.leochacarolli.it_inventory.catalog.model.Manufacturer;
 import br.com.posjava.leochacarolli.it_inventory.catalog.service.AssetModelService;
 import br.com.posjava.leochacarolli.it_inventory.catalog.service.CategoryService;
 import br.com.posjava.leochacarolli.it_inventory.catalog.service.ManufacturerService;
-import br.com.posjava.leochacarolli.it_inventory.location.model.Location;
-import br.com.posjava.leochacarolli.it_inventory.location.service.LocationService;
 import org.springframework.boot.CommandLineRunner;
 import org.springframework.stereotype.Component;
 
@@ -21,35 +19,42 @@ public class Loader implements CommandLineRunner {
 
     private final AssetService assetService;
     private final AssetModelService assetModelService;
-    private final LocationService locationService;
     private final CategoryService categoryService;
     private final ManufacturerService manufacturerService;
 
-    public Loader(AssetService assetService, AssetModelService assetModelService, LocationService locationService, CategoryService categoryService, ManufacturerService manufacturerService) {
+    public Loader(
+            AssetService assetService,
+            AssetModelService assetModelService,
+            CategoryService categoryService,
+            ManufacturerService manufacturerService) {
+
         this.assetService = assetService;
         this.assetModelService = assetModelService;
-        this.locationService = locationService;
         this.categoryService = categoryService;
         this.manufacturerService = manufacturerService;
     }
 
     @Override
-    public void run(String... args) throws Exception {
+    public void run(String... args) {
 
-
-        // Listas utilizadas nos relacionamentos
+        // Listas utilizadas nos relacionamentos locais
         List<AssetModel> notebookModels = new ArrayList<>();
         List<AssetModel> desktopModels = new ArrayList<>();
+
         List<AssetModel> dellModels = new ArrayList<>();
         List<AssetModel> lenovoModels = new ArrayList<>();
+
         List<Asset> latitude5440Assets = new ArrayList<>();
         List<Asset> thinkPadE14Assets = new ArrayList<>();
-        List<Asset> humanResourcesAssets = new ArrayList<>();
-        List<Asset> nocAssets = new ArrayList<>();
-        List<Asset> comercialAssets = new ArrayList<>();
 
 
-        // Criação dos objetos
+        // IDs das localizações pertencentes ao location-service
+        Long humanResourcesLocationId = 1L;
+        Long nocLocationId = 2L;
+        Long comercialLocationId = 3L;
+
+
+        // Criação das categorias
         Category notebook = new Category(
                 null,
                 true,
@@ -66,6 +71,8 @@ public class Loader implements CommandLineRunner {
                 desktopModels
         );
 
+
+        // Criação dos fabricantes
         Manufacturer dell = new Manufacturer(
                 null,
                 true,
@@ -82,6 +89,8 @@ public class Loader implements CommandLineRunner {
                 lenovoModels
         );
 
+
+        // Criação dos modelos
         AssetModel latitude5440 = new AssetModel(
                 null,
                 true,
@@ -100,32 +109,10 @@ public class Loader implements CommandLineRunner {
                 thinkPadE14Assets
         );
 
-        Location humanResources = new Location(
-                null,
-                true,
-                "Human Resources",
-                13,
-                "",
-                humanResourcesAssets
-        );
 
-        Location noc = new Location(
-                null,
-                true,
-                "NOC",
-                1,
-                "",
-                nocAssets
-        );
-
-        Location comercial = new Location(
-                null,
-                true,
-                "Comercial",
-                13,
-                "",
-                comercialAssets
-        );
+        // Criação dos ativos
+        // A aplicação principal não possui mais objetos Location.
+        // Ela armazena somente o ID pertencente ao location-service.
 
         Asset hrnt01 = new Asset(
                 null,
@@ -134,7 +121,7 @@ public class Loader implements CommandLineRunner {
                 "4IJ18H",
                 3000,
                 thinkPadE14,
-                humanResources
+                humanResourcesLocationId
         );
 
         Asset nocnt01 = new Asset(
@@ -144,7 +131,7 @@ public class Loader implements CommandLineRunner {
                 "9YTR4O",
                 5000,
                 latitude5440,
-                noc
+                nocLocationId
         );
 
         Asset comercialnt01 = new Asset(
@@ -154,17 +141,21 @@ public class Loader implements CommandLineRunner {
                 "42JLRW",
                 3000,
                 thinkPadE14,
-                comercial
+                comercialLocationId
         );
 
 
-        // Montagem dos relacionamentos
-
+        // Cadastro inicial das categorias
         categoryService.addCategory(notebook);
         categoryService.addCategory(desktop);
 
+
+        // Cadastro inicial dos fabricantes
         manufacturerService.addManufacturer(dell);
         manufacturerService.addManufacturer(lenovo);
+
+
+        // Montagem dos relacionamentos locais
 
         notebookModels.add(latitude5440);
         notebookModels.add(thinkPadE14);
@@ -174,22 +165,13 @@ public class Loader implements CommandLineRunner {
 
         thinkPadE14Assets.add(hrnt01);
         thinkPadE14Assets.add(comercialnt01);
-        latitude5440Assets.add(nocnt01);
 
-        humanResourcesAssets.add(hrnt01);
-        nocAssets.add(nocnt01);
-        comercialAssets.add(comercialnt01);
+        latitude5440Assets.add(nocnt01);
 
 
         // Cadastro inicial dos modelos
         assetModelService.addAssetModel(latitude5440);
         assetModelService.addAssetModel(thinkPadE14);
-
-
-        // Cadastro inicial das localizações
-        locationService.addLocation(humanResources);
-        locationService.addLocation(noc);
-        locationService.addLocation(comercial);
 
 
         // Cadastro inicial dos ativos
@@ -199,6 +181,7 @@ public class Loader implements CommandLineRunner {
 
 
         System.out.println("Ativos cadastrados no banco:");
-        assetService.getAllAssets().forEach(System.out::println);
+        assetService.getAllAssets()
+                .forEach(System.out::println);
     }
 }

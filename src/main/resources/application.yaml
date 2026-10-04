@@ -16,3 +16,7 @@ spring:
   h2:
     console:
       enabled: true
+
+services:
+  location:
+    url: http://localhost:8081

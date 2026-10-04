@@ -1,0 +1,45 @@
+{
+  "info": {
+    "_postman_id": "7efb33b0-ca3c-4b9d-ad2e-750c706a197d",
+    "name": "IT Inventory API - Etapa 2 - Serviço Indisponível",
+    "description": "Cenário específico de resiliência. ANTES DE RODAR: mantenha o it-inventory em 8080 ligado e pare o location-service em 8081. A requisição deve retornar 503 Service Unavailable.",
+    "schema": "https://schema.getpostman.com/json/collection/v2.1.0/collection.json"
+  },
+  "variable": [
+    {
+      "key": "baseUrl",
+      "value": "http://localhost:8080"
+    }
+  ],
+  "item": [
+    {
+      "name": "Location Service indisponível - esperar 503",
+      "event": [
+        {
+          "listen": "test",
+          "script": {
+            "type": "text/javascript",
+            "exec": [
+              "pm.test(\"Status 503\", () => pm.response.to.have.status(503));",
+              "pm.test(\"Mensagem amigável de indisponibilidade\", () => { const json = pm.response.json(); pm.expect(json.error).to.eql(\"Service Unavailable\"); pm.expect(json.message).to.eql(\"O serviço de localizações está temporariamente indisponível\"); });"
+            ]
+          }
+        }
+      ],
+      "request": {
+        "method": "GET",
+        "header": [],
+        "url": {
+          "raw": "{{baseUrl}}/assets",
+          "host": [
+            "{{baseUrl}}"
+          ],
+          "path": [
+            "assets"
+          ]
+        },
+        "description": "Pare o location-service (8081) antes de enviar esta requisição."
+      }
+    }
+  ]
+}

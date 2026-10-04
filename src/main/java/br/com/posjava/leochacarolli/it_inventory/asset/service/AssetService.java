@@ -7,9 +7,14 @@ import br.com.posjava.leochacarolli.it_inventory.asset.repository.AssetRepositor
 import br.com.posjava.leochacarolli.it_inventory.asset.dto.AssetRequestDTO;
 import br.com.posjava.leochacarolli.it_inventory.catalog.model.AssetModel;
 import br.com.posjava.leochacarolli.it_inventory.catalog.service.AssetModelService;
-import br.com.posjava.leochacarolli.it_inventory.location.model.Location;
-import br.com.posjava.leochacarolli.it_inventory.location.service.LocationService;
 import org.springframework.stereotype.Service;
+import br.com.posjava.leochacarolli.it_inventory.asset.dto.AssetResponseDTO;
+import br.com.posjava.leochacarolli.it_inventory.location.client.LocationClient;
+import br.com.posjava.leochacarolli.it_inventory.location.client.LocationClientResponseDTO;
+import br.com.posjava.leochacarolli.it_inventory.location.client.exception.LocationServiceUnavailableException;
+import br.com.posjava.leochacarolli.it_inventory.location.client.exception.LocationNotFoundException;
+import feign.FeignException;
+import feign.RetryableException;
 
 import java.util.*;
 
@@ -18,22 +23,23 @@ public class AssetService {
 
     private final AssetRepository assetRepository;
     private final AssetModelService assetModelService;
-    private final LocationService locationService;
+    private final LocationClient locationClient;
 
-    public AssetService(AssetRepository assetRepository, AssetModelService assetModelService, LocationService locationService) {
+    public AssetService(AssetRepository assetRepository, AssetModelService assetModelService, LocationClient locationClient) {
         this.assetRepository = assetRepository;
         this.assetModelService = assetModelService;
-        this.locationService = locationService;
+        this.locationClient = locationClient;
     }
 
     public Asset createAsset(AssetRequestDTO request) {
+
         AssetModel model =
                 assetModelService.getAssetModelById(
                         request.getAssetModelId()
                 );
 
-        Location location =
-                locationService.getLocationById(
+        LocationClientResponseDTO location =
+                getLocationFromService(
                         request.getLocationId()
                 );
 
@@ -44,7 +50,7 @@ public class AssetService {
                 request.getSerialNumber(),
                 request.getPurchaseValue(),
                 model,
-                location
+                location.getId()
         );
 
         addAsset(asset);
@@ -95,8 +101,8 @@ public class AssetService {
                         request.getAssetModelId()
                 );
 
-        Location location =
-                locationService.getLocationById(
+        LocationClientResponseDTO location =
+                getLocationFromService(
                         request.getLocationId()
                 );
 
@@ -105,7 +111,7 @@ public class AssetService {
         asset.setSerialNumber(request.getSerialNumber());
         asset.setPurchaseValue(request.getPurchaseValue());
         asset.setModel(model);
-        asset.setLocation(location);
+        asset.setLocationId(location.getId());
 
         return assetRepository.save(asset);
     }
@@ -132,5 +138,36 @@ public class AssetService {
                 .stream()
                 .map(asset -> asset.getName())
                 .toList();
+    }
+
+    public AssetResponseDTO toResponseDTO(Asset asset) {
+
+        LocationClientResponseDTO location =
+                getLocationFromService(
+                        asset.getLocationId()
+                );
+
+        return new AssetResponseDTO(
+                asset,
+                location.getName()
+        );
+    }
+
+    private LocationClientResponseDTO getLocationFromService(Long locationId) {
+        try {
+            return locationClient.getLocationById(locationId);
+
+        } catch (FeignException.NotFound exception) {
+
+            throw new LocationNotFoundException(
+                    "Localização não encontrada para o ID: " + locationId
+            );
+
+        } catch (RetryableException exception) {
+
+            throw new LocationServiceUnavailableException(
+                    "O serviço de localizações está temporariamente indisponível"
+            );
+        }
     }
 }
