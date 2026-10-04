@@ -5,14 +5,13 @@ import br.com.posjava.leochacarolli.it_inventory.asset.exception.DuplicateAssetE
 import br.com.posjava.leochacarolli.it_inventory.asset.exception.InvalidAssetDataException;
 import br.com.posjava.leochacarolli.it_inventory.catalog.exception.AssetModelNotFoundException;
 import br.com.posjava.leochacarolli.it_inventory.catalog.exception.CategoryNotFoundException;
-import br.com.posjava.leochacarolli.it_inventory.location.exception.DuplicateLocationException;
-import br.com.posjava.leochacarolli.it_inventory.location.exception.InvalidLocationDataException;
-import br.com.posjava.leochacarolli.it_inventory.location.exception.LocationNotFoundException;
+import br.com.posjava.leochacarolli.it_inventory.location.client.exception.LocationNotFoundException;
 import org.springframework.http.HttpStatus;
 import org.springframework.http.ResponseEntity;
 import org.springframework.web.bind.MethodArgumentNotValidException;
 import org.springframework.web.bind.annotation.ExceptionHandler;
 import org.springframework.web.bind.annotation.RestControllerAdvice;
+import br.com.posjava.leochacarolli.it_inventory.location.client.exception.LocationServiceUnavailableException;
 
 import java.util.LinkedHashMap;
 import java.util.Map;
@@ -62,7 +61,6 @@ public class GlobalExceptionHandler {
 
     @ExceptionHandler({
             InvalidAssetDataException.class,
-            InvalidLocationDataException.class
     })
     public ResponseEntity<Map<String, Object>> handleInvalidData(
             RuntimeException exception) {
@@ -80,7 +78,6 @@ public class GlobalExceptionHandler {
 
     @ExceptionHandler({
             DuplicateAssetException.class,
-            DuplicateLocationException.class
     })
     public ResponseEntity<Map<String, Object>> handleConflict(
             RuntimeException exception) {
@@ -93,6 +90,32 @@ public class GlobalExceptionHandler {
 
         return ResponseEntity
                 .status(HttpStatus.CONFLICT)
+                .body(response);
+    }
+
+    @ExceptionHandler(LocationServiceUnavailableException.class)
+    public ResponseEntity<Map<String, Object>> handleServiceUnavailable(
+            LocationServiceUnavailableException exception) {
+
+        Map<String, Object> response = new LinkedHashMap<>();
+
+        response.put(
+                "status",
+                HttpStatus.SERVICE_UNAVAILABLE.value()
+        );
+
+        response.put(
+                "error",
+                "Service Unavailable"
+        );
+
+        response.put(
+                "message",
+                exception.getMessage()
+        );
+
+        return ResponseEntity
+                .status(HttpStatus.SERVICE_UNAVAILABLE)
                 .body(response);
     }
 }

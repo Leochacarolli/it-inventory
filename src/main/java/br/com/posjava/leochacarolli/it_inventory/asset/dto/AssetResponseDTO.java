@@ -12,14 +12,14 @@ public class AssetResponseDTO {
     private String model;
     private String location;
 
-    public AssetResponseDTO(Asset asset) {
+    public AssetResponseDTO(Asset asset, String locationName) {
         this.id = asset.getId();
         this.active = asset.isActive();
         this.name = asset.getName();
         this.serialNumber = asset.getSerialNumber();
         this.purchaseValue = asset.getPurchaseValue();
         this.model = asset.getModel().getName();
-        this.location = asset.getLocation().getName();
+        this.location = locationName;
     }
 
     public Long getId() {

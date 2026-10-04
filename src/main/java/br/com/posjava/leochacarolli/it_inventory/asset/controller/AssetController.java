@@ -10,7 +10,6 @@ import io.swagger.v3.oas.annotations.tags.Tag;
 import jakarta.validation.Valid;
 import org.springframework.http.HttpStatus;
 import org.springframework.web.bind.annotation.*;
-
 import java.util.List;
 
 @Tag(
@@ -35,7 +34,7 @@ public class AssetController {
     public List<AssetResponseDTO> getAllAssets() {
         return assetService.getAllAssets()
                 .stream()
-                .map(AssetResponseDTO::new)
+                .map(assetService::toResponseDTO)
                 .toList();
     }
 
@@ -50,7 +49,8 @@ public class AssetController {
             @PathVariable Long id) {
 
         Asset asset = assetService.getAssetById(id);
-        return new AssetResponseDTO(asset);
+
+        return assetService.toResponseDTO(asset);
     }
 
 
@@ -62,7 +62,7 @@ public class AssetController {
     public List<AssetResponseDTO> getActiveAssets() {
         return assetService.getActiveAssets()
                 .stream()
-                .map(AssetResponseDTO::new)
+                .map(assetService::toResponseDTO)
                 .toList();
     }
 
@@ -75,7 +75,7 @@ public class AssetController {
     public List<AssetResponseDTO> getInactiveAssets() {
         return assetService.getInactiveAssets()
                 .stream()
-                .map(AssetResponseDTO::new)
+                .map(assetService::toResponseDTO)
                 .toList();
     }
 
@@ -88,7 +88,7 @@ public class AssetController {
     public List<AssetResponseDTO> getOrderedAssetsByName() {
         return assetService.getOrderedAssetsByName()
                 .stream()
-                .map(AssetResponseDTO::new)
+                .map(assetService::toResponseDTO)
                 .toList();
     }
 
@@ -106,7 +106,8 @@ public class AssetController {
             @RequestParam String name) {
 
         Asset asset = assetService.getAssetByName(name);
-        return new AssetResponseDTO(asset);
+
+        return assetService.toResponseDTO(asset);
     }
 
 
@@ -121,7 +122,7 @@ public class AssetController {
 
         Asset asset = assetService.createAsset(request);
 
-        return new AssetResponseDTO(asset);
+        return assetService.toResponseDTO(asset);
     }
 
 
@@ -137,7 +138,7 @@ public class AssetController {
 
         Asset updatedAsset = assetService.updateAsset(id, request);
 
-        return new AssetResponseDTO(updatedAsset);
+        return assetService.toResponseDTO(updatedAsset);
     }
 
 

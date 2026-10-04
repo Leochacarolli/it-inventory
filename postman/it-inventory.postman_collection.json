@@ -1,8 +1,8 @@
 {
   "info": {
-    "_postman_id": "8c2d2b6a-6e76-4f92-9e65-2d8b7dc4b0f1",
-    "name": "IT Inventory API",
-    "description": "Coleção de requisições para testes da API IT Inventory - Etapa 4.",
+    "_postman_id": "116d66b2-45e1-46f6-9f03-79c66d573fc8",
+    "name": "IT Inventory API - Etapa 2 Microsserviços",
+    "description": "Coleção atualizada para validar a Etapa 2: location-service isolado, integração via OpenFeign, validações e tratamento de 404 remoto. Execute com location-service (8081) e it-inventory (8080) ligados. Para o cenário 503, use a coleção separada de indisponibilidade.",
     "schema": "https://schema.getpostman.com/json/collection/v2.1.0/collection.json"
   },
   "variable": [
@@ -11,16 +11,185 @@
       "value": "http://localhost:8080"
     },
     {
+      "key": "locationBaseUrl",
+      "value": "http://localhost:8081"
+    },
+    {
       "key": "assetId",
-      "value": "4"
+      "value": "1"
+    },
+    {
+      "key": "locationId",
+      "value": "1"
+    },
+    {
+      "key": "missingLocationId",
+      "value": "999"
+    },
+    {
+      "key": "createdAssetId",
+      "value": ""
+    },
+    {
+      "key": "createdLocationId",
+      "value": ""
     }
   ],
   "item": [
     {
-      "name": "Assets",
+      "name": "01 - Location Service - Testes isolados",
+      "description": "Execute com o location-service ligado em http://localhost:8081.",
       "item": [
         {
-          "name": "Listar todos os ativos",
+          "name": "01 - Listar localizações",
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "pm.test(\"Status 200\", () => pm.response.to.have.status(200));",
+                  "pm.test(\"Resposta é uma lista\", () => pm.expect(pm.response.json()).to.be.an(\"array\"));",
+                  "pm.test(\"Localizações iniciais foram carregadas\", () => { const names = pm.response.json().map(x => x.name); pm.expect(names).to.include.members([\"Human Resources\", \"NOC\", \"Comercial\"]); });"
+                ]
+              }
+            }
+          ],
+          "request": {
+            "method": "GET",
+            "header": [],
+            "url": {
+              "raw": "{{locationBaseUrl}}/locations",
+              "host": [
+                "{{locationBaseUrl}}"
+              ],
+              "path": [
+                "locations"
+              ]
+            }
+          }
+        },
+        {
+          "name": "02 - Buscar localização por ID",
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "pm.test(\"Status 200\", () => pm.response.to.have.status(200));",
+                  "pm.test(\"Retorna Human Resources\", () => { const json = pm.response.json(); pm.expect(json.id).to.eql(Number(pm.collectionVariables.get(\"locationId\"))); pm.expect(json.name).to.eql(\"Human Resources\"); });"
+                ]
+              }
+            }
+          ],
+          "request": {
+            "method": "GET",
+            "header": [],
+            "url": {
+              "raw": "{{locationBaseUrl}}/locations/{{locationId}}",
+              "host": [
+                "{{locationBaseUrl}}"
+              ],
+              "path": [
+                "locations",
+                "{{locationId}}"
+              ]
+            }
+          }
+        },
+        {
+          "name": "03 - Buscar localização inexistente",
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "pm.test(\"Status 404\", () => pm.response.to.have.status(404));",
+                  "pm.test(\"Erro tratado\", () => { const json = pm.response.json(); pm.expect(json.error).to.eql(\"Not Found\"); pm.expect(json.message).to.include(pm.collectionVariables.get(\"missingLocationId\")); });"
+                ]
+              }
+            }
+          ],
+          "request": {
+            "method": "GET",
+            "header": [],
+            "url": {
+              "raw": "{{locationBaseUrl}}/locations/{{missingLocationId}}",
+              "host": [
+                "{{locationBaseUrl}}"
+              ],
+              "path": [
+                "locations",
+                "{{missingLocationId}}"
+              ]
+            }
+          }
+        },
+        {
+          "name": "04 - Criar localização",
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "pm.test(\"Status 201\", () => pm.response.to.have.status(201));",
+                  "pm.test(\"Localização criada\", () => { const json = pm.response.json(); pm.expect(json.id).to.exist; pm.expect(json.name).to.eql(\"Laboratório de Testes\"); pm.collectionVariables.set(\"createdLocationId\", json.id); });"
+                ]
+              }
+            }
+          ],
+          "request": {
+            "method": "POST",
+            "header": [
+              {
+                "key": "Content-Type",
+                "value": "application/json"
+              }
+            ],
+            "url": {
+              "raw": "{{locationBaseUrl}}/locations",
+              "host": [
+                "{{locationBaseUrl}}"
+              ],
+              "path": [
+                "locations"
+              ]
+            },
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"active\": true,\n  \"name\": \"Laboratório de Testes\",\n  \"floor\": 2,\n  \"description\": \"Criada pela coleção da Etapa 2\"\n}",
+              "options": {
+                "raw": {
+                  "language": "json"
+                }
+              }
+            }
+          }
+        }
+      ]
+    },
+    {
+      "name": "02 - IT Inventory - Integração via OpenFeign",
+      "description": "Execute após os testes isolados, mantendo os dois serviços ligados. O POST salva automaticamente o ID criado para PUT/DELETE.",
+      "item": [
+        {
+          "name": "01 - Listar todos os ativos",
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "pm.test(\"Status 200\", () => pm.response.to.have.status(200));",
+                  "pm.test(\"Resposta é uma lista\", () => pm.expect(pm.response.json()).to.be.an(\"array\"));",
+                  "pm.test(\"Localizações vieram do serviço remoto\", () => { const json = pm.response.json(); pm.expect(json.length).to.be.at.least(3); const names = json.map(x => x.location); pm.expect(names).to.include.members([\"Human Resources\", \"NOC\", \"Comercial\"]); });"
+                ]
+              }
+            }
+          ],
           "request": {
             "method": "GET",
             "header": [],
@@ -36,7 +205,19 @@
           }
         },
         {
-          "name": "Buscar ativo por ID",
+          "name": "02 - Buscar ativo por ID",
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "pm.test(\"Status 200\", () => pm.response.to.have.status(200));",
+                  "pm.test(\"Ativo possui localização resolvida\", () => { const json = pm.response.json(); pm.expect(json.id).to.eql(Number(pm.collectionVariables.get(\"assetId\"))); pm.expect(json.location).to.eql(\"Human Resources\"); });"
+                ]
+              }
+            }
+          ],
           "request": {
             "method": "GET",
             "header": [],
@@ -53,115 +234,19 @@
           }
         },
         {
-          "name": "Criar ativo - válido",
-          "request": {
-            "method": "POST",
-            "header": [
-              {
-                "key": "Content-Type",
-                "value": "application/json"
+          "name": "03 - Listar ativos ativos",
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "pm.test(\"Status 200\", () => pm.response.to.have.status(200));",
+                  "pm.test(\"Todos os retornados estão ativos\", () => pm.expect(pm.response.json().every(x => x.active === true)).to.eql(true));"
+                ]
               }
-            ],
-            "body": {
-              "mode": "raw",
-              "raw": "{\n  \"active\": true,\n  \"name\": \"TESTENT01\",\n  \"serialNumber\": \"ABC123\",\n  \"purchaseValue\": 2500,\n  \"assetModelId\": 1,\n  \"locationId\": 1\n}",
-              "options": {
-                "raw": {
-                  "language": "json"
-                }
-              }
-            },
-            "url": {
-              "raw": "{{baseUrl}}/assets",
-              "host": [
-                "{{baseUrl}}"
-              ],
-              "path": [
-                "assets"
-              ]
             }
-          }
-        },
-        {
-          "name": "Criar ativo - inválido",
-          "request": {
-            "method": "POST",
-            "header": [
-              {
-                "key": "Content-Type",
-                "value": "application/json"
-              }
-            ],
-            "body": {
-              "mode": "raw",
-              "raw": "{\n  \"active\": true,\n  \"name\": \"\",\n  \"serialNumber\": \"ABC123\",\n  \"purchaseValue\": -100,\n  \"assetModelId\": 1,\n  \"locationId\": 1\n}",
-              "options": {
-                "raw": {
-                  "language": "json"
-                }
-              }
-            },
-            "url": {
-              "raw": "{{baseUrl}}/assets",
-              "host": [
-                "{{baseUrl}}"
-              ],
-              "path": [
-                "assets"
-              ]
-            }
-          }
-        },
-        {
-          "name": "Atualizar ativo",
-          "request": {
-            "method": "PUT",
-            "header": [
-              {
-                "key": "Content-Type",
-                "value": "application/json"
-              }
-            ],
-            "body": {
-              "mode": "raw",
-              "raw": "{\n  \"active\": false,\n  \"name\": \"TESTENT01 - Atualizado\",\n  \"serialNumber\": \"ABC123\",\n  \"purchaseValue\": 2800,\n  \"assetModelId\": 1,\n  \"locationId\": 2\n}",
-              "options": {
-                "raw": {
-                  "language": "json"
-                }
-              }
-            },
-            "url": {
-              "raw": "{{baseUrl}}/assets/{{assetId}}",
-              "host": [
-                "{{baseUrl}}"
-              ],
-              "path": [
-                "assets",
-                "{{assetId}}"
-              ]
-            }
-          }
-        },
-        {
-          "name": "Excluir ativo",
-          "request": {
-            "method": "DELETE",
-            "header": [],
-            "url": {
-              "raw": "{{baseUrl}}/assets/{{assetId}}",
-              "host": [
-                "{{baseUrl}}"
-              ],
-              "path": [
-                "assets",
-                "{{assetId}}"
-              ]
-            }
-          }
-        },
-        {
-          "name": "Listar ativos ativos",
+          ],
           "request": {
             "method": "GET",
             "header": [],
@@ -178,24 +263,19 @@
           }
         },
         {
-          "name": "Listar ativos inativos",
-          "request": {
-            "method": "GET",
-            "header": [],
-            "url": {
-              "raw": "{{baseUrl}}/assets/inactive",
-              "host": [
-                "{{baseUrl}}"
-              ],
-              "path": [
-                "assets",
-                "inactive"
-              ]
+          "name": "04 - Listar ativos ordenados por nome",
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "pm.test(\"Status 200\", () => pm.response.to.have.status(200));",
+                  "pm.test(\"Ordenação por nome\", () => { const names = pm.response.json().map(x => x.name); const sorted = [...names].sort((a,b) => a.localeCompare(b)); pm.expect(names).to.eql(sorted); });"
+                ]
+              }
             }
-          }
-        },
-        {
-          "name": "Listar ativos ordenados por nome",
+          ],
           "request": {
             "method": "GET",
             "header": [],
@@ -212,7 +292,19 @@
           }
         },
         {
-          "name": "Buscar ativo por nome",
+          "name": "05 - Buscar ativo por nome",
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "pm.test(\"Status 200\", () => pm.response.to.have.status(200));",
+                  "pm.test(\"Busca pelo nome\", () => pm.expect(pm.response.json().name).to.include(\"HRNT\"));"
+                ]
+              }
+            }
+          ],
           "request": {
             "method": "GET",
             "header": [],
@@ -231,6 +323,268 @@
                   "value": "HRNT"
                 }
               ]
+            }
+          }
+        },
+        {
+          "name": "06 - Criar ativo válido",
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "pm.test(\"Status 201\", () => pm.response.to.have.status(201));",
+                  "pm.test(\"Ativo criado com localização remota\", () => { const json = pm.response.json(); pm.expect(json.id).to.exist; pm.expect(json.location).to.eql(\"Human Resources\"); pm.collectionVariables.set(\"createdAssetId\", json.id); });"
+                ]
+              }
+            }
+          ],
+          "request": {
+            "method": "POST",
+            "header": [
+              {
+                "key": "Content-Type",
+                "value": "application/json"
+              }
+            ],
+            "url": {
+              "raw": "{{baseUrl}}/assets",
+              "host": [
+                "{{baseUrl}}"
+              ],
+              "path": [
+                "assets"
+              ]
+            },
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"active\": true,\n  \"name\": \"TESTENT01\",\n  \"serialNumber\": \"ABC123\",\n  \"purchaseValue\": 2500,\n  \"assetModelId\": 1,\n  \"locationId\": 1\n}",
+              "options": {
+                "raw": {
+                  "language": "json"
+                }
+              }
+            }
+          }
+        },
+        {
+          "name": "07 - Atualizar ativo criado",
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "pm.test(\"Status 200\", () => pm.response.to.have.status(200));",
+                  "pm.test(\"Ativo atualizado e localização alterada\", () => { const json = pm.response.json(); pm.expect(json.active).to.eql(false); pm.expect(json.name).to.eql(\"TESTENT01 - Atualizado\"); pm.expect(json.location).to.eql(\"NOC\"); });"
+                ]
+              }
+            }
+          ],
+          "request": {
+            "method": "PUT",
+            "header": [
+              {
+                "key": "Content-Type",
+                "value": "application/json"
+              }
+            ],
+            "url": {
+              "raw": "{{baseUrl}}/assets/{{createdAssetId}}",
+              "host": [
+                "{{baseUrl}}"
+              ],
+              "path": [
+                "assets",
+                "{{createdAssetId}}"
+              ]
+            },
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"active\": false,\n  \"name\": \"TESTENT01 - Atualizado\",\n  \"serialNumber\": \"ABC123\",\n  \"purchaseValue\": 2800,\n  \"assetModelId\": 1,\n  \"locationId\": 2\n}",
+              "options": {
+                "raw": {
+                  "language": "json"
+                }
+              }
+            }
+          }
+        },
+        {
+          "name": "08 - Listar ativos inativos",
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "pm.test(\"Status 200\", () => pm.response.to.have.status(200));",
+                  "pm.test(\"Todos os retornados estão inativos\", () => pm.expect(pm.response.json().every(x => x.active === false)).to.eql(true));",
+                  "pm.test(\"Ativo atualizado aparece na lista\", () => { const id = Number(pm.collectionVariables.get(\"createdAssetId\")); pm.expect(pm.response.json().some(x => x.id === id)).to.eql(true); });"
+                ]
+              }
+            }
+          ],
+          "request": {
+            "method": "GET",
+            "header": [],
+            "url": {
+              "raw": "{{baseUrl}}/assets/inactive",
+              "host": [
+                "{{baseUrl}}"
+              ],
+              "path": [
+                "assets",
+                "inactive"
+              ]
+            }
+          }
+        },
+        {
+          "name": "09 - Excluir ativo criado",
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "pm.test(\"Status 204\", () => pm.response.to.have.status(204));"
+                ]
+              }
+            }
+          ],
+          "request": {
+            "method": "DELETE",
+            "header": [],
+            "url": {
+              "raw": "{{baseUrl}}/assets/{{createdAssetId}}",
+              "host": [
+                "{{baseUrl}}"
+              ],
+              "path": [
+                "assets",
+                "{{createdAssetId}}"
+              ]
+            }
+          }
+        },
+        {
+          "name": "10 - Confirmar exclusão",
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "pm.test(\"Status 404\", () => pm.response.to.have.status(404));",
+                  "pm.test(\"Ativo excluído não é encontrado\", () => pm.expect(pm.response.json().error).to.eql(\"Not Found\"));"
+                ]
+              }
+            }
+          ],
+          "request": {
+            "method": "GET",
+            "header": [],
+            "url": {
+              "raw": "{{baseUrl}}/assets/{{createdAssetId}}",
+              "host": [
+                "{{baseUrl}}"
+              ],
+              "path": [
+                "assets",
+                "{{createdAssetId}}"
+              ]
+            }
+          }
+        }
+      ]
+    },
+    {
+      "name": "03 - Validações e erros remotos",
+      "description": "Execute com os dois serviços ligados. Valida Bean Validation e 404 retornado pelo location-service.",
+      "item": [
+        {
+          "name": "01 - Criar ativo com dados inválidos",
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "pm.test(\"Status 400\", () => pm.response.to.have.status(400));",
+                  "pm.test(\"Bean Validation retornou os campos inválidos\", () => { const json = pm.response.json(); pm.expect(json.errors).to.be.an(\"object\"); pm.expect(json.errors).to.have.property(\"name\"); pm.expect(json.errors).to.have.property(\"purchaseValue\"); pm.expect(json.errors).to.have.property(\"assetModelId\"); pm.expect(json.errors).to.have.property(\"locationId\"); });"
+                ]
+              }
+            }
+          ],
+          "request": {
+            "method": "POST",
+            "header": [
+              {
+                "key": "Content-Type",
+                "value": "application/json"
+              }
+            ],
+            "url": {
+              "raw": "{{baseUrl}}/assets",
+              "host": [
+                "{{baseUrl}}"
+              ],
+              "path": [
+                "assets"
+              ]
+            },
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"active\": true,\n  \"name\": \"\",\n  \"serialNumber\": \"ABC123\",\n  \"purchaseValue\": -100,\n  \"assetModelId\": 0,\n  \"locationId\": -1\n}",
+              "options": {
+                "raw": {
+                  "language": "json"
+                }
+              }
+            }
+          }
+        },
+        {
+          "name": "02 - Criar ativo com localização inexistente",
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "pm.test(\"Status 404\", () => pm.response.to.have.status(404));",
+                  "pm.test(\"404 remoto foi traduzido pela aplicação principal\", () => { const json = pm.response.json(); pm.expect(json.error).to.eql(\"Not Found\"); pm.expect(json.message).to.include(\"999\"); });"
+                ]
+              }
+            }
+          ],
+          "request": {
+            "method": "POST",
+            "header": [
+              {
+                "key": "Content-Type",
+                "value": "application/json"
+              }
+            ],
+            "url": {
+              "raw": "{{baseUrl}}/assets",
+              "host": [
+                "{{baseUrl}}"
+              ],
+              "path": [
+                "assets"
+              ]
+            },
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"active\": true,\n  \"name\": \"TEST-LOCATION-404\",\n  \"serialNumber\": \"LOC999\",\n  \"purchaseValue\": 2500,\n  \"assetModelId\": 1,\n  \"locationId\": 999\n}",
+              "options": {
+                "raw": {
+                  "language": "json"
+                }
+              }
             }
           }
         }
