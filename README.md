@@ -2,17 +2,18 @@
 
 API REST desenvolvida como projeto da Pós-Graduação em Engenharia de Software com Java.
 
-O **IT Inventory** teve início em uma disciplina anterior, na qual evoluiu gradualmente desde a modelagem orientada a objetos até uma API REST com persistência utilizando Spring Data JPA.
+O **IT Inventory** é uma aplicação para gerenciamento de ativos de TI que vem sendo evoluída de forma incremental ao longo das disciplinas, passando por organização arquitetural, comunicação entre microsserviços e, atualmente, práticas de configuração externa e execução Cloud Native.
 
-Na disciplina atual, o projeto está sendo utilizado como base para o estudo de **arquiteturas de microsserviços**.
+Na arquitetura atual, a solução possui duas aplicações de domínio independentes:
 
-Na **Etapa 1**, a aplicação foi reorganizada por domínio e teve suas responsabilidades revisadas.
+- **IT Inventory** — aplicação principal responsável pelo gerenciamento dos ativos;
+- **Location Service** — serviço independente responsável pelo gerenciamento das localizações.
 
-Na **Etapa 2**, a responsabilidade de **localizações** foi extraída da aplicação principal e transformada em uma aplicação Spring Boot independente, denominada **Location Service**. A comunicação entre as duas aplicações passou a ocorrer via HTTP utilizando **OpenFeign**.
+Além delas, a solução utiliza um **Spring Cloud Config Server** para centralização das configurações e bancos PostgreSQL independentes para cada serviço.
 
 ---
 
-## Objetivo
+# Objetivo
 
 O **IT Inventory** é uma solução para gerenciamento de ativos de TI.
 
@@ -24,81 +25,91 @@ O domínio contempla:
 - fabricantes;
 - localizações.
 
-A aplicação principal permite cadastrar, consultar, atualizar, remover, filtrar, ordenar e pesquisar ativos.
+A aplicação principal permite:
 
-As localizações passaram a ser gerenciadas por um serviço independente.
+- cadastrar ativos;
+- consultar ativos;
+- atualizar ativos;
+- remover ativos;
+- filtrar por status;
+- ordenar por nome;
+- pesquisar por nome.
+
+As informações de localização são mantidas por um serviço independente e acessadas pela aplicação principal através de comunicação HTTP utilizando OpenFeign.
 
 ---
 
 # Arquitetura atual
 
-Ao final da Etapa 2, a solução possui duas aplicações Spring Boot independentes:
+Ao final da Etapa 3, a solução possui a seguinte arquitetura:
 
 ```text
-Cliente HTTP
-    ↓
-IT Inventory :8080
-├── Controller
-├── Service
-├── Repository
-├── Banco H2
-└── LocationClient
-        ↓
-     OpenFeign
-        ↓ HTTP
-Location Service :8081
-├── Controller
-├── Service
-├── Repository
-└── Banco H2
+                         Config Server :8888
+                          /           \
+                         ↓             ↓
+              IT Inventory :8080   Location Service :8081
+                     ↓                     ↓
+             PostgreSQL Inventory   PostgreSQL Location
 ```
 
-A aplicação principal continua concentrando a maior parte das funcionalidades do sistema.
-
-Apenas a responsabilidade de localização foi separada.
-
-## Responsabilidades da aplicação principal
-
-- **Controller**: recebe requisições HTTP e devolve respostas da API.
-- **DTO**: representa os dados recebidos e retornados pelos endpoints.
-- **Service**: concentra regras e coordena as operações da aplicação.
-- **Repository**: realiza acesso aos dados utilizando Spring Data JPA.
-- **Model**: representa as entidades pertencentes à aplicação principal.
-- **Feign Client**: realiza a comunicação HTTP com o Location Service.
-- **GlobalExceptionHandler**: centraliza a conversão de exceções em respostas HTTP adequadas.
-
-Os Controllers não acessam diretamente os Repositories e também não realizam comunicação direta com o serviço externo.
-
-O fluxo utilizado para consultas que dependem de localização é:
+Quando executada através do Docker Compose:
 
 ```text
-Controller
-    ↓
-AssetService
-    ↓
-LocationClient
-    ↓ HTTP
-Location Service
+Docker Compose
+│
+├── config-server
+│      └── porta 8888
+│
+├── it-inventory
+│      ├── porta 8080
+│      └── PostgreSQL → inventory-db
+│
+├── location-service
+│      ├── porta 8081
+│      └── PostgreSQL → location-db
+│
+├── inventory-db
+│
+└── location-db
+```
+
+A comunicação entre containers ocorre através da rede criada pelo Docker Compose.
+
+Por esse motivo, os serviços não utilizam `localhost` para comunicação interna.
+
+Exemplos:
+
+```text
+http://config-server:8888
+http://location-service:8081
+
+jdbc:postgresql://inventory-db:5432/itinventory
+jdbc:postgresql://location-db:5432/locationdb
 ```
 
 ---
 
 # Organização do projeto
 
-A aplicação principal continua organizada por domínio.
+A estrutura principal é:
 
 ```text
 it-inventory/
+│
+├── config-server/
+│   ├── config-repo/
+│   │   ├── it-inventory-dev.yml
+│   │   ├── it-inventory-prod.yml
+│   │   ├── location-service-dev.yml
+│   │   └── location-service-prod.yml
+│   │
+│   ├── src/
+│   ├── Dockerfile
+│   └── pom.xml
+│
 ├── location-service/
-│   ├── src/main/java/br/com/posjava/leochacarolli/location_service
-│   │   ├── config
-│   │   ├── controller
-│   │   ├── dto
-│   │   ├── exception
-│   │   ├── model
-│   │   ├── repository
-│   │   └── service
-│   ├── src/main/resources
+│   ├── src/
+│   ├── Dockerfile
 │   └── pom.xml
 │
 ├── postman/
@@ -106,107 +117,69 @@ it-inventory/
 │   ├── it-inventory-service-unavailable.postman_collection.json
 │   └── README-testes-postman.md
 │
-├── src/main/java/br/com/posjava/leochacarolli/it_inventory
-│   ├── asset
-│   │   ├── controller
-│   │   ├── dto
-│   │   ├── exception
-│   │   ├── model
-│   │   ├── repository
-│   │   └── service
-│   │
-│   ├── catalog
-│   │   ├── exception
-│   │   ├── model
-│   │   ├── repository
-│   │   └── service
-│   │
-│   ├── location
-│   │   └── client
-│   │       └── exception
-│   │
-│   ├── shared
-│   │   ├── exception
-│   │   └── model
-│   │
-│   ├── config
-│   └── ItInventoryApplication
+├── src/
+│   └── main/
+│       ├── java/
+│       └── resources/
 │
-├── src/main/resources
+├── Dockerfile
+├── compose.yml
+├── .env.example
 ├── pom.xml
 └── README.md
 ```
 
-A aplicação principal não possui mais `LocationRepository`, `LocationService` ou entidade JPA `Location`.
+---
 
-O pacote `location` da aplicação principal contém apenas os componentes necessários para a comunicação com o serviço remoto.
+# Aplicação principal — IT Inventory
+
+A aplicação principal continua responsável pelas funcionalidades relacionadas ao inventário.
+
+Sua estrutura é organizada por domínio.
+
+```text
+it_inventory
+├── asset
+│   ├── controller
+│   ├── dto
+│   ├── exception
+│   ├── model
+│   ├── repository
+│   └── service
+│
+├── catalog
+│   ├── exception
+│   ├── model
+│   ├── repository
+│   └── service
+│
+├── location
+│   └── client
+│
+├── shared
+│   ├── exception
+│   └── model
+│
+└── config
+```
+
+A aplicação principal não possui mais uma entidade JPA `Location`.
+
+O ativo mantém apenas:
+
+```text
+locationId
+```
+
+e utiliza o Location Service para recuperar as informações relacionadas à localização.
 
 ---
 
-# Módulos e responsabilidades
+# Location Service
 
-## Asset
+O **Location Service** é uma aplicação Spring Boot independente.
 
-Responsável pelo gerenciamento dos ativos físicos de TI.
-
-Entre suas funcionalidades estão:
-
-- criação;
-- consulta;
-- atualização;
-- exclusão;
-- filtro por status;
-- ordenação por nome;
-- pesquisa por nome.
-
-Principais componentes:
-
-```text
-Asset
-AssetController
-AssetService
-AssetRepository
-AssetRequestDTO
-AssetResponseDTO
-```
-
----
-
-## Catalog
-
-Responsável pelas informações utilizadas para classificar os ativos.
-
-O módulo reúne:
-
-```text
-AssetModel
-Category
-Manufacturer
-```
-
-Exemplo:
-
-```text
-Category
-    ↓
-Notebook
-
-Manufacturer
-    ↓
-Lenovo
-
-AssetModel
-    ↓
-ThinkPad E14
-```
-
-O catálogo continua pertencendo à aplicação principal.
-
----
-
-## Location Service
-
-Serviço independente responsável pelo gerenciamento das localizações onde os ativos podem estar alocados.
+Sua responsabilidade é gerenciar as localizações utilizadas pelo inventário.
 
 Exemplos:
 
@@ -215,8 +188,6 @@ Human Resources
 NOC
 Comercial
 ```
-
-O serviço possui aplicação, API REST, banco de dados e ciclo de execução próprios.
 
 Principais componentes:
 
@@ -229,85 +200,37 @@ LocationRequestDTO
 LocationResponseDTO
 ```
 
+O serviço possui:
+
+- API REST própria;
+- banco PostgreSQL próprio;
+- configurações próprias;
+- documentação Swagger;
+- ciclo de execução independente.
+
 ---
 
-# Serviço independente escolhido
+# Comunicação entre aplicações
 
-## Nome
+A comunicação entre o IT Inventory e o Location Service utiliza **Spring Cloud OpenFeign**.
 
-**Location Service**
-
-## Responsabilidade principal
-
-Cadastrar e consultar as localizações utilizadas pelos ativos do inventário.
-
-## Funcionalidade separada
-
-Na Etapa 1, `Location` fazia parte da mesma aplicação Spring Boot que `Asset`.
-
-A comunicação era interna:
+O fluxo é:
 
 ```text
+Cliente
+   ↓
+AssetController
+   ↓
 AssetService
-    ↓
-LocationService
-    ↓
-LocationRepository
-```
-
-Na Etapa 2, essa responsabilidade foi removida da aplicação principal.
-
-A comunicação passou a ser:
-
-```text
-AssetService
-    ↓
+   ↓
 LocationClient
-    ↓ OpenFeign / HTTP
+   ↓
+HTTP
+   ↓
 Location Service
-    ↓
-LocationService
-    ↓
-LocationRepository
-```
-
-## Motivo da separação
-
-A responsabilidade de localização possui limites claros e pode existir independentemente do gerenciamento de ativos.
-
-Ela possui seus próprios:
-
-- dados;
-- regras;
-- API;
-- DTOs;
-- Repository;
-- tratamento de exceções.
-
-Além disso, as informações de localização poderiam futuramente ser reutilizadas por outras aplicações.
-
----
-
-# Dependência entre os serviços
-
-Um `Asset` não armazena mais uma entidade `Location`.
-
-Na aplicação principal, o ativo possui apenas:
-
-```text
-locationId
 ```
 
 Exemplo:
-
-```text
-Asset
-├── id = 1
-├── name = HRNT01
-└── locationId = 1
-```
-
-O nome da localização é obtido através do Location Service:
 
 ```text
 Asset.locationId = 1
@@ -321,7 +244,9 @@ Location Service
 Human Resources
 ```
 
-O banco de dados da aplicação principal não possui uma foreign key para a tabela de localizações, pois essa tabela pertence a outro serviço.
+Os Controllers não realizam diretamente a comunicação HTTP.
+
+A responsabilidade permanece na camada de Service e no Feign Client.
 
 ---
 
@@ -332,29 +257,36 @@ O banco de dados da aplicação principal não possui uma foreign key para a tab
 - Spring MVC
 - Spring Data JPA
 - Hibernate
-- H2 Database
+- PostgreSQL
 - Bean Validation
 - Spring Cloud OpenFeign
+- Spring Cloud Config
 - Springdoc OpenAPI
 - Swagger UI
 - Maven
+- Docker
+- Docker Compose
 - Postman
 - Git
 - GitHub
 
 ---
 
-# Bancos de dados
+# Persistência independente
 
-As aplicações utilizam bancos H2 em memória independentes.
+A Etapa 3 substituiu os bancos H2 em memória por bancos PostgreSQL.
 
-## IT Inventory
+Cada aplicação possui sua própria persistência.
+
+## Banco do IT Inventory
+
+Banco:
 
 ```text
-jdbc:h2:mem:itinventory
+itinventory
 ```
 
-Tabelas principais:
+Principais tabelas:
 
 ```text
 asset
@@ -363,12 +295,14 @@ category
 manufacturer
 ```
 
-A tabela `location` não existe mais no banco principal.
+O banco principal não possui tabela `location`.
 
-## Location Service
+## Banco do Location Service
+
+Banco:
 
 ```text
-jdbc:h2:mem:locationdb
+locationdb
 ```
 
 Tabela principal:
@@ -377,83 +311,510 @@ Tabela principal:
 location
 ```
 
-Como os bancos são executados em memória, os dados são recriados quando as aplicações são reiniciadas.
+Isso garante que um serviço não acesse diretamente as tabelas pertencentes ao outro.
+
+A comunicação entre os contextos ocorre exclusivamente pelas interfaces disponibilizadas pelos serviços.
 
 ---
 
-# Configuração do Location Service
+# PostgreSQL com Docker
 
-A aplicação principal não possui o endereço do Location Service inserido diretamente no código Java.
+Os dois bancos são executados em containers independentes.
 
-A URL é configurada externamente no `application.yml`:
+## Inventory Database
 
-```yaml
-services:
-  location:
-    url: http://localhost:8081
-```
-
-O Feign Client utiliza essa configuração para localizar o serviço remoto.
-
-Essa separação permite alterar o endereço do serviço sem modificar a implementação Java.
-
----
-
-# Como executar a solução
-
-## Pré-requisitos
-
-- JDK 17 ou superior;
-- Maven ou Maven Wrapper;
-- portas `8080` e `8081` disponíveis.
-
-## Ordem recomendada
-
-Iniciar primeiro:
+Execução local:
 
 ```text
-LocationServiceApplication
+localhost:5432
 ```
 
-O serviço ficará disponível em:
+Dentro da rede Docker:
+
+```text
+inventory-db:5432
+```
+
+## Location Database
+
+Execução local:
+
+```text
+localhost:5433
+```
+
+Dentro da rede Docker:
+
+```text
+location-db:5432
+```
+
+Os bancos utilizam volumes Docker para preservar os dados entre reinicializações dos containers.
+
+```text
+inventory-db-data
+location-db-data
+```
+
+---
+
+# Profiles
+
+As aplicações possuem configurações distintas para diferentes ambientes.
+
+Os profiles utilizados são:
+
+```text
+dev
+prod
+```
+
+## Desenvolvimento
+
+No profile `dev`, são utilizados valores adequados para execução através da IDE.
+
+Exemplos:
+
+```text
+IT Inventory DB:
+jdbc:postgresql://localhost:5432/itinventory
+
+Location Service DB:
+jdbc:postgresql://localhost:5433/locationdb
+
+Location Service:
+http://localhost:8081
+```
+
+## Produção / Containers
+
+No profile `prod`, os serviços utilizam os nomes definidos no Docker Compose.
+
+Exemplos:
+
+```text
+jdbc:postgresql://inventory-db:5432/itinventory
+
+jdbc:postgresql://location-db:5432/locationdb
+
+http://location-service:8081
+```
+
+Dessa forma, a aplicação não precisa ter seu código alterado quando o ambiente muda.
+
+---
+
+# Variáveis de ambiente
+
+As configurações que podem variar entre ambientes são fornecidas externamente.
+
+Entre as variáveis utilizadas estão:
+
+```text
+SPRING_PROFILES_ACTIVE
+
+SERVER_PORT
+
+DB_URL
+DB_USERNAME
+DB_PASSWORD
+
+LOCATION_SERVICE_URL
+
+CONFIG_SERVER_URL
+CONFIG_REPO_LOCATION
+```
+
+As aplicações utilizam essas variáveis durante a execução.
+
+Exemplo:
+
+```yaml
+spring:
+  datasource:
+    url: ${DB_URL}
+    username: ${DB_USERNAME}
+    password: ${DB_PASSWORD}
+```
+
+---
+
+# Arquivo `.env`
+
+O Docker Compose utiliza um arquivo `.env` local para algumas configurações.
+
+Exemplo:
+
+```env
+INVENTORY_DB_NAME=itinventory
+INVENTORY_DB_USER=itinventory
+INVENTORY_DB_PASSWORD=inventory123
+
+LOCATION_DB_NAME=locationdb
+LOCATION_DB_USER=location
+LOCATION_DB_PASSWORD=location123
+```
+
+O arquivo `.env` não deve ser versionado.
+
+Por isso ele está incluído no:
+
+```text
+.gitignore
+```
+
+O repositório disponibiliza:
+
+```text
+.env.example
+```
+
+como referência das variáveis necessárias.
+
+---
+
+# Configuração centralizada
+
+A solução utiliza **Spring Cloud Config Server**.
+
+O Config Server é executado na porta:
+
+```text
+8888
+```
+
+As configurações são armazenadas em:
+
+```text
+config-server/config-repo/
+```
+
+Arquivos existentes:
+
+```text
+it-inventory-dev.yml
+it-inventory-prod.yml
+
+location-service-dev.yml
+location-service-prod.yml
+```
+
+---
+
+# Funcionamento do Config Server
+
+O IT Inventory utiliza:
+
+```text
+spring.application.name = it-inventory
+```
+
+O Location Service utiliza:
+
+```text
+spring.application.name = location-service
+```
+
+Ao iniciar com o profile:
+
+```text
+prod
+```
+
+o IT Inventory consulta:
+
+```text
+http://config-server:8888/it-inventory/prod
+```
+
+e o Location Service consulta:
+
+```text
+http://config-server:8888/location-service/prod
+```
+
+Quando executado pela IDE, o endereço padrão pode ser:
+
+```text
+http://localhost:8888
+```
+
+---
+
+# Exemplo de configuração centralizada
+
+Exemplo do IT Inventory em produção:
+
+```yaml
+server:
+  port: ${SERVER_PORT:8080}
+
+spring:
+  datasource:
+    url: ${DB_URL:jdbc:postgresql://inventory-db:5432/itinventory}
+    username: ${DB_USERNAME}
+    password: ${DB_PASSWORD}
+    driver-class-name: org.postgresql.Driver
+
+  jpa:
+    hibernate:
+      ddl-auto: update
+    show-sql: false
+
+services:
+  location:
+    url: ${LOCATION_SERVICE_URL:http://location-service:8081}
+```
+
+Location Service:
+
+```yaml
+server:
+  port: ${SERVER_PORT:8081}
+
+spring:
+  datasource:
+    url: ${DB_URL:jdbc:postgresql://location-db:5432/locationdb}
+    username: ${DB_USERNAME}
+    password: ${DB_PASSWORD}
+    driver-class-name: org.postgresql.Driver
+
+  jpa:
+    hibernate:
+      ddl-auto: update
+    show-sql: false
+```
+
+---
+
+# Docker
+
+Cada aplicação Spring Boot possui um `Dockerfile`.
+
+São geradas imagens independentes para:
+
+```text
+it-inventory
+location-service
+config-server
+```
+
+Os Dockerfiles executam os arquivos JAR utilizando Java 17.
+
+Exemplo conceitual:
+
+```dockerfile
+FROM eclipse-temurin:17-jre-jammy
+
+WORKDIR /app
+
+COPY target/*.jar app.jar
+
+ENTRYPOINT ["java", "-jar", "app.jar"]
+```
+
+---
+
+# Geração dos arquivos JAR
+
+Antes da construção das imagens, gerar os arquivos JAR.
+
+## IT Inventory
+
+Na raiz:
+
+```bash
+./mvnw package -DskipTests
+```
+
+Windows:
+
+```powershell
+.\mvnw.cmd package -DskipTests
+```
+
+## Location Service
+
+```bash
+cd location-service
+./mvnw package -DskipTests
+```
+
+Windows:
+
+```powershell
+cd location-service
+.\mvnw.cmd package -DskipTests
+cd ..
+```
+
+## Config Server
+
+```bash
+cd config-server
+./mvnw package -DskipTests
+```
+
+Windows:
+
+```powershell
+cd config-server
+.\mvnw.cmd package -DskipTests
+cd ..
+```
+
+Os JARs são gerados nas respectivas pastas:
+
+```text
+target/
+location-service/target/
+config-server/target/
+```
+
+---
+
+# Docker Compose
+
+Toda a solução pode ser iniciada utilizando:
+
+```bash
+docker compose up --build -d
+```
+
+O Docker Compose inicia:
+
+```text
+config-server
+inventory-db
+location-db
+location-service
+it-inventory
+```
+
+Para verificar o estado:
+
+```bash
+docker compose ps
+```
+
+Exemplo esperado:
+
+```text
+config-server      healthy
+inventory-db       healthy
+location-db        healthy
+location-service   healthy
+it-inventory       healthy
+```
+
+---
+
+# Rede entre containers
+
+O Docker Compose cria uma rede para comunicação entre os componentes.
+
+Exemplo:
+
+```text
+it-inventory-network
+```
+
+Dentro dessa rede, os containers utilizam o nome do serviço como hostname.
+
+Exemplo:
+
+```text
+it-inventory
+       ↓
+http://location-service:8081
+```
+
+Não é utilizado:
 
 ```text
 http://localhost:8081
 ```
 
-Depois iniciar:
+para comunicação entre containers.
+
+O mesmo ocorre com os bancos:
 
 ```text
-ItInventoryApplication
+inventory-db:5432
+location-db:5432
 ```
-
-A aplicação principal ficará disponível em:
-
-```text
-http://localhost:8080
-```
-
-## Execução pela IDE
-
-É possível executar diretamente:
-
-```text
-location-service
-└── LocationServiceApplication
-```
-
-e:
-
-```text
-it-inventory
-└── ItInventoryApplication
-```
-
-As duas aplicações devem permanecer em execução simultaneamente durante os testes normais de integração.
 
 ---
 
-# API do IT Inventory
+# Inicialização da solução
+
+## Execução completa com Docker
+
+Primeiro, gerar os JARs das três aplicações.
+
+Depois:
+
+```bash
+docker compose up --build -d
+```
+
+Verificar:
+
+```bash
+docker compose ps
+```
+
+Para visualizar os logs:
+
+```bash
+docker compose logs
+```
+
+ou:
+
+```bash
+docker compose logs -f
+```
+
+Para um serviço específico:
+
+```bash
+docker compose logs it-inventory
+```
+
+```bash
+docker compose logs location-service
+```
+
+```bash
+docker compose logs config-server
+```
+
+---
+
+# Parando os containers
+
+Para parar toda a solução:
+
+```bash
+docker compose down
+```
+
+Os volumes dos bancos são preservados.
+
+Para remover também os volumes seria necessário utilizar:
+
+```bash
+docker compose down -v
+```
+
+> O comando com `-v` remove os volumes e, consequentemente, os dados persistidos nos bancos.
+
+---
+
+# APIs
+
+## IT Inventory
 
 Base URL:
 
@@ -461,23 +822,23 @@ Base URL:
 http://localhost:8080
 ```
 
-## Assets
+### Assets
 
 | Método | Endpoint | Descrição |
 |---|---|---|
 | GET | `/assets` | Lista todos os ativos |
 | GET | `/assets/{id}` | Busca um ativo por ID |
-| POST | `/assets` | Cadastra um novo ativo |
-| PUT | `/assets/{id}` | Atualiza um ativo existente |
+| POST | `/assets` | Cadastra um ativo |
+| PUT | `/assets/{id}` | Atualiza um ativo |
 | DELETE | `/assets/{id}` | Remove um ativo |
 | GET | `/assets/active` | Lista ativos ativos |
 | GET | `/assets/inactive` | Lista ativos inativos |
-| GET | `/assets/ordered` | Lista ativos ordenados pelo nome |
+| GET | `/assets/ordered` | Lista ativos ordenados por nome |
 | GET | `/assets/search?name=HRNT` | Pesquisa ativo pelo nome |
 
 ---
 
-# API do Location Service
+## Location Service
 
 Base URL:
 
@@ -485,23 +846,19 @@ Base URL:
 http://localhost:8081
 ```
 
-## Locations
+### Locations
 
 | Método | Endpoint | Descrição |
 |---|---|---|
 | GET | `/locations` | Lista as localizações |
-| GET | `/locations/{id}` | Busca uma localização por ID |
-| POST | `/locations` | Cadastra uma nova localização |
+| GET | `/locations/{id}` | Busca localização por ID |
+| POST | `/locations` | Cadastra uma localização |
 
 ---
 
-# OpenAPI / Swagger
-
-As duas aplicações possuem documentação própria.
+# Swagger
 
 ## IT Inventory
-
-Swagger UI:
 
 ```text
 http://localhost:8080/swagger-ui/index.html
@@ -515,8 +872,6 @@ http://localhost:8080/v3/api-docs
 
 ## Location Service
 
-Swagger UI:
-
 ```text
 http://localhost:8081/swagger-ui/index.html
 ```
@@ -527,205 +882,113 @@ OpenAPI:
 http://localhost:8081/v3/api-docs
 ```
 
-A documentação permite identificar endpoints, métodos HTTP, parâmetros e estruturas utilizadas pelas APIs.
+---
+
+# Testando o Config Server
+
+Com os containers em execução:
+
+```bash
+curl http://localhost:8888/it-inventory/prod
+```
+
+Resposta esperada contém:
+
+```text
+it-inventory-prod.yml
+```
+
+Também:
+
+```bash
+curl http://localhost:8888/location-service/prod
+```
+
+Resposta esperada contém:
+
+```text
+location-service-prod.yml
+```
 
 ---
 
-# DTOs e contrato entre aplicações
+# Testando a execução integrada
 
-As entidades JPA não são utilizadas diretamente como contrato entre os serviços.
+Location Service:
 
-O Location Service utiliza DTOs próprios:
+```bash
+curl http://localhost:8081/locations
+```
+
+Resposta esperada contém:
 
 ```text
-LocationRequestDTO
-LocationResponseDTO
+Human Resources
+NOC
+Comercial
 ```
 
-A aplicação principal possui um DTO específico para receber a resposta do serviço remoto:
+IT Inventory:
 
-```text
-LocationClientResponseDTO
+```bash
+curl http://localhost:8080/assets
 ```
 
-Esse modelo permite separar:
+A resposta deverá conter os ativos e os nomes das localizações recuperados através do Location Service.
 
-```text
-modelo interno da aplicação
-        ≠
-contrato utilizado na comunicação HTTP
-```
-
----
-
-# Exemplo de criação de ativo
-
-## Requisição
-
-```http
-POST /assets
-Content-Type: application/json
-```
+Exemplo:
 
 ```json
 {
+  "id": 1,
   "active": true,
-  "name": "TESTENT01",
-  "serialNumber": "ABC123",
-  "purchaseValue": 2500,
-  "assetModelId": 1,
-  "locationId": 1
-}
-```
-
-Antes de salvar o ativo, a aplicação principal consulta o Location Service para verificar se a localização existe.
-
-## Resposta
-
-```json
-{
-  "id": 4,
-  "active": true,
-  "name": "TESTENT01",
-  "serialNumber": "ABC123",
-  "purchaseValue": 2500.0,
-  "model": "Latitude 5440",
+  "name": "HRNT01",
+  "serialNumber": "4IJ18H",
+  "purchaseValue": 3000.0,
+  "model": "ThinkPad E14",
   "location": "Human Resources"
 }
 ```
 
-Embora a entidade `Asset` armazene apenas `locationId`, a API continua retornando o nome da localização através da consulta remota.
+---
+
+# Persistência dos dados
+
+Os Loaders verificam se já existem registros antes da carga inicial.
+
+Isso evita duplicação de dados quando as aplicações são reiniciadas.
+
+Exemplo conceitual:
+
+```text
+Banco vazio
+    ↓
+Loader executa
+    ↓
+dados iniciais são criados
+```
+
+```text
+Banco possui dados
+    ↓
+Loader identifica os registros
+    ↓
+carga inicial é ignorada
+```
+
+Isso se tornou necessário após a substituição do H2 pelos bancos PostgreSQL persistentes.
 
 ---
 
-# Exemplo de integração com uma localização criada no serviço remoto
+# Tratamento de falhas entre serviços
 
-Uma localização pode ser criada diretamente no Location Service:
+A aplicação principal trata diferentes situações de comunicação com o Location Service.
 
-```http
-POST http://localhost:8081/locations
-```
-
-```json
-{
-  "active": true,
-  "name": "Laboratório de Testes",
-  "floor": 2,
-  "description": "Localização criada para teste da Etapa 2"
-}
-```
-
-Exemplo de resposta:
-
-```json
-{
-  "id": 4,
-  "active": true,
-  "name": "Laboratório de Testes",
-  "floor": 2,
-  "description": "Localização criada para teste da Etapa 2"
-}
-```
-
-Em seguida, a aplicação principal pode utilizar esse ID:
-
-```json
-{
-  "active": true,
-  "name": "TESTENT01",
-  "serialNumber": "ABC123",
-  "purchaseValue": 2500,
-  "assetModelId": 1,
-  "locationId": 4
-}
-```
-
-A resposta da aplicação principal contém:
-
-```json
-{
-  "location": "Laboratório de Testes"
-}
-```
-
-demonstrando que o nome foi obtido através do Location Service.
-
----
-
-# Bean Validation
-
-A aplicação utiliza Bean Validation para validar os dados antes da execução das operações.
-
-Entre as anotações utilizadas estão:
-
-```java
-@NotBlank
-@NotNull
-@Positive
-@PositiveOrZero
-```
-
-Os Controllers utilizam:
-
-```java
-@Valid
-```
-
-Exemplo de dados inválidos:
-
-```json
-{
-  "active": true,
-  "name": "",
-  "serialNumber": "ABC123",
-  "purchaseValue": -100,
-  "assetModelId": 0,
-  "locationId": -1
-}
-```
-
-Resposta:
+## Localização inexistente
 
 ```text
-400 Bad Request
+404 Not Found
 ```
-
-com os erros referentes aos campos inválidos.
-
----
-
-# Tratamento de exceções
-
-As situações excepcionais são convertidas em respostas HTTP controladas.
-
-## Recurso inexistente
-
-Exemplo:
-
-```text
-GET /assets/999
-```
-
-Resposta:
-
-```json
-{
-  "status": 404,
-  "error": "Not Found",
-  "message": "Ativo não encontrado para o ID: 999"
-}
-```
-
-## Localização remota inexistente
-
-Quando o Location Service está disponível, mas o ID solicitado não existe:
-
-```text
-POST /assets
-locationId = 999
-```
-
-a chamada remota retorna `404`, que é tratada pela aplicação principal.
 
 Exemplo:
 
@@ -737,11 +1000,7 @@ Exemplo:
 }
 ```
 
-## Serviço remoto indisponível
-
-Quando o Location Service não está em execução, o OpenFeign não consegue concluir a chamada.
-
-A aplicação principal trata essa situação e retorna:
+## Location Service indisponível
 
 ```text
 503 Service Unavailable
@@ -757,87 +1016,28 @@ Exemplo:
 }
 ```
 
-Dessa forma, detalhes internos da falha de comunicação não são expostos ao cliente.
-
----
-
-# Status HTTP utilizados
-
-| Situação | Status |
-|---|---|
-| Consulta realizada com sucesso | `200 OK` |
-| Atualização realizada com sucesso | `200 OK` |
-| Criação realizada com sucesso | `201 Created` |
-| Exclusão realizada com sucesso | `204 No Content` |
-| Dados inválidos | `400 Bad Request` |
-| Recurso inexistente | `404 Not Found` |
-| Conflito ou duplicidade | `409 Conflict` |
-| Serviço externo indisponível | `503 Service Unavailable` |
-
----
-
-# Consultas Spring Data JPA
-
-A aplicação principal continua utilizando consultas derivadas do Spring Data JPA.
-
-Exemplos no `AssetRepository`:
-
-```java
-List<Asset> findByActive(boolean active);
-
-List<Asset> findAllByOrderByNameAsc();
-
-Optional<Asset> findFirstByNameContainingIgnoreCase(String name);
-```
-
-Essas consultas são utilizadas para:
-
-- filtrar ativos por status;
-- listar ativos em ordem alfabética;
-- pesquisar ativos pelo nome.
-
 ---
 
 # Testes com Postman
 
-As coleções utilizadas nos testes estão armazenadas em:
+As coleções utilizadas nos testes encontram-se em:
 
 ```text
 postman/
-├── it-inventory.postman_collection.json
-├── it-inventory-service-unavailable.postman_collection.json
-└── README-testes-postman.md
 ```
 
-## Collection principal
+A collection principal testa:
 
-Executada com as duas aplicações ligadas.
-
-Abrange:
-
-- listagem das localizações;
-- consulta de localização por ID;
+- Location Service isoladamente;
+- integração através do OpenFeign;
+- CRUD de ativos;
+- Bean Validation;
 - localização inexistente;
-- criação de localização;
-- listagem dos ativos;
-- busca de ativo por ID;
 - filtros;
 - ordenação;
-- pesquisa;
-- criação de ativo;
-- atualização;
-- exclusão;
-- Bean Validation;
-- localização remota inexistente.
+- pesquisa.
 
-## Collection de indisponibilidade
-
-Executada com:
-
-```text
-IT Inventory       → ligado
-Location Service   → desligado
-```
+Existe também uma collection específica para validar o comportamento quando o Location Service está indisponível.
 
 Resultado esperado:
 
@@ -845,232 +1045,328 @@ Resultado esperado:
 503 Service Unavailable
 ```
 
-O Runner do Postman valida:
-
-```text
-Status 503
-Mensagem amigável de indisponibilidade
-```
-
----
-
-# Testes realizados na Etapa 2
-
-Foram validados os seguintes cenários:
-
-| Cenário | Resultado esperado |
-|---|---|
-| Listar localizações | `200 OK` |
-| Consultar localização existente | `200 OK` |
-| Consultar localização inexistente | `404 Not Found` |
-| Criar localização | `201 Created` |
-| Listar ativos utilizando dados remotos | `200 OK` |
-| Criar ativo com localização existente | `201 Created` |
-| Atualizar localização de um ativo | `200 OK` |
-| Excluir ativo | `204 No Content` |
-| Consultar ativo excluído | `404 Not Found` |
-| Dados inválidos | `400 Bad Request` |
-| Localização remota inexistente | `404 Not Found` |
-| Location Service indisponível | `503 Service Unavailable` |
-
 ---
 
 # Evolução arquitetural
 
-## Antes da separação
+## Etapa 1
 
-Na Etapa 1:
+A aplicação foi reorganizada por domínio.
 
 ```text
-Aplicação Spring Boot
-├── Asset
-├── Catalog
-└── Location
-        ↓
-Banco único
+asset
+catalog
+location
+shared
 ```
 
-A comunicação entre `Asset` e `Location` ocorria por chamadas internas entre objetos Java.
+O objetivo foi melhorar a separação de responsabilidades e identificar candidatos para extração futura.
 
-## Depois da separação
+---
 
-Na Etapa 2:
+## Etapa 2
+
+O gerenciamento de localizações foi extraído para uma aplicação Spring Boot independente.
+
+Antes:
+
+```text
+AssetService
+    ↓
+LocationService
+```
+
+Depois:
+
+```text
+AssetService
+    ↓
+LocationClient
+    ↓ HTTP
+Location Service
+```
+
+Foi introduzido:
+
+- OpenFeign;
+- API REST independente;
+- DTOs de comunicação;
+- tratamento de falhas de rede;
+- execução de aplicações independentes.
+
+---
+
+## Etapa 3
+
+A solução foi preparada para execução Cloud Native.
+
+Foram implementados:
+
+- Profiles `dev` e `prod`;
+- variáveis de ambiente;
+- PostgreSQL;
+- persistência independente;
+- Spring Cloud Config Server;
+- configuração centralizada;
+- Dockerfiles;
+- containerização dos bancos;
+- volumes;
+- rede Docker;
+- Docker Compose;
+- execução integrada dos componentes.
+
+A solução deixou de depender de configurações fixas relacionadas ao ambiente de execução.
+
+---
+
+# Arquitetura final da Etapa 3
+
+```text
+                       ┌──────────────────────┐
+                       │    Config Server     │
+                       │        :8888         │
+                       └──────────┬───────────┘
+                                  │
+                    ┌─────────────┴─────────────┐
+                    ↓                           ↓
+       ┌────────────────────────┐   ┌────────────────────────┐
+       │      IT Inventory      │   │    Location Service    │
+       │         :8080          │   │         :8081          │
+       └────────────┬───────────┘   └────────────┬───────────┘
+                    │                            │
+                    ↓                            ↓
+       ┌────────────────────────┐   ┌────────────────────────┐
+       │     inventory-db       │   │      location-db       │
+       │      PostgreSQL        │   │      PostgreSQL        │
+       └────────────────────────┘   └────────────────────────┘
+
+                    IT Inventory
+                          │
+                          │ OpenFeign / HTTP
+                          ↓
+                   Location Service
+```
+
+Todos os componentes são coordenados localmente através do Docker Compose.
+
+---
+
+# Reflexão arquitetural — Etapa 3
+
+## 1. Quais configurações da aplicação podem variar entre ambientes?
+
+Entre as configurações que podem variar estão:
+
+- porta das aplicações;
+- endereço dos bancos de dados;
+- nome dos bancos;
+- usuário dos bancos;
+- senha dos bancos;
+- URL do Location Service;
+- URL do Config Server;
+- profile ativo;
+- configurações específicas de execução.
+
+Esses valores dependem do ambiente onde a solução está sendo executada.
+
+---
+
+## 2. Quais dessas configurações foram externalizadas?
+
+Foram externalizadas:
+
+```text
+SERVER_PORT
+DB_URL
+DB_USERNAME
+DB_PASSWORD
+LOCATION_SERVICE_URL
+CONFIG_SERVER_URL
+SPRING_PROFILES_ACTIVE
+CONFIG_REPO_LOCATION
+```
+
+Além disso, as configurações dos ambientes `dev` e `prod` são fornecidas pelo Spring Cloud Config Server.
+
+Dessa forma, mudanças relacionadas ao ambiente não exigem alterações no código Java.
+
+---
+
+## 3. Por que um serviço não deve acessar diretamente o banco de outro serviço?
+
+Cada serviço deve ser responsável por seus próprios dados.
+
+Se o IT Inventory acessasse diretamente as tabelas do Location Service, seria criado um forte acoplamento entre as aplicações.
+
+Alterações internas no banco do Location Service poderiam quebrar a aplicação principal.
+
+Por isso, a comunicação ocorre através da API disponibilizada pelo serviço:
 
 ```text
 IT Inventory
-├── Asset
-├── Catalog
-└── LocationClient
-        ↓ HTTP
+      ↓ HTTP
 Location Service
-└── Location
+      ↓
+Location Database
 ```
 
-A chamada:
+A API funciona como contrato entre as aplicações.
+
+---
+
+## 4. Qual problema o Docker resolve no projeto?
+
+O Docker padroniza o ambiente necessário para executar os componentes.
+
+Sem Docker, seria necessário instalar e configurar manualmente:
+
+- PostgreSQL;
+- versões de Java;
+- portas;
+- bancos;
+- dependências de infraestrutura.
+
+Com Docker, cada componente possui um ambiente previsível e reproduzível.
+
+Isso reduz diferenças entre máquinas e facilita a execução da solução.
+
+---
+
+## 5. Qual é a função do Docker Compose?
+
+O Docker Compose coordena a execução de múltiplos containers.
+
+Neste projeto ele é responsável por iniciar e integrar:
 
 ```text
-AssetService → LocationService
+Config Server
+IT Inventory
+Location Service
+Inventory Database
+Location Database
 ```
 
-foi substituída por:
+Também é responsável por:
+
+- criação da rede;
+- definição das variáveis de ambiente;
+- portas;
+- volumes;
+- dependências entre serviços;
+- health checks.
+
+Com um único comando:
+
+```bash
+docker compose up -d
+```
+
+é possível iniciar a infraestrutura completa.
+
+---
+
+## 6. Qual problema uma configuração centralizada procura resolver?
+
+Em uma arquitetura distribuída, cada aplicação possui diversas configurações.
+
+Sem centralização, seria necessário manter arquivos de configuração separados em cada projeto e alterar manualmente cada aplicação.
+
+O Config Server cria um local centralizado para essas configurações.
+
+No projeto:
 
 ```text
-AssetService → LocationClient → HTTP → Location Service
+Config Server
+      ├── it-inventory-dev
+      ├── it-inventory-prod
+      ├── location-service-dev
+      └── location-service-prod
 ```
 
-Essa mudança introduziu novos aspectos arquiteturais:
+As aplicações recuperam suas configurações durante a inicialização.
 
-- comunicação pela rede;
-- contratos entre aplicações;
-- configuração de endereço externo;
-- possibilidade de indisponibilidade;
-- necessidade de tratar falhas remotas;
-- execução independente das aplicações.
+Isso facilita:
 
----
-
-# Arquitetura ao final da Etapa 2
-
-```text
-Cliente HTTP
-       ↓
-┌─────────────────────────────────────┐
-│          IT Inventory :8080         │
-│                                     │
-│  Controller                         │
-│      ↓                              │
-│  AssetService                       │
-│      ├────────────→ Repository      │
-│      │                 ↓            │
-│      │              Banco H2        │
-│      │                              │
-│      └────────────→ LocationClient  │
-└────────────────────────┬────────────┘
-                         │
-                         │ OpenFeign / HTTP
-                         ↓
-┌─────────────────────────────────────┐
-│        Location Service :8081       │
-│                                     │
-│  LocationController                 │
-│      ↓                              │
-│  LocationService                    │
-│      ↓                              │
-│  LocationRepository                 │
-│      ↓                              │
-│  Banco H2 locationdb                │
-└─────────────────────────────────────┘
-```
+- manutenção;
+- organização;
+- separação entre ambientes;
+- redução de configurações duplicadas;
+- alteração de parâmetros sem modificar código Java.
 
 ---
 
-# Reflexão arquitetural
-
-## 1. Qual funcionalidade foi separada da aplicação principal?
-
-Foi separado o gerenciamento de **localizações**.
-
-A entidade e as operações relacionadas a `Location` deixaram de pertencer à aplicação principal e passaram a ser executadas pelo **Location Service**.
-
----
-
-## 2. Por que ela foi escolhida?
-
-A localização possui uma responsabilidade relativamente independente do gerenciamento dos ativos.
-
-Ela possui dados e operações próprios e pode, no futuro, ser utilizada por outras aplicações além do IT Inventory.
-
-Além disso, o módulo já apresentava limites claros na organização por domínio realizada na Etapa 1.
-
----
-
-## 3. O que ficou mais complexo depois da separação?
-
-Antes da separação, uma consulta de localização era apenas uma chamada entre métodos Java da mesma aplicação.
-
-Depois da separação, foi necessário lidar com:
-
-- comunicação HTTP;
-- OpenFeign;
-- DTOs específicos de comunicação;
-- configuração do endereço remoto;
-- inicialização de duas aplicações;
-- bancos de dados independentes;
-- erros retornados pelo serviço remoto;
-- indisponibilidade de rede ou do serviço.
-
-Assim, a separação reduziu o acoplamento de implementação, porém aumentou a complexidade operacional e de integração.
-
----
-
-## 4. O que acontece com a funcionalidade principal caso o novo serviço fique indisponível?
-
-As operações que precisam consultar informações de localização deixam de conseguir concluir normalmente.
-
-Por exemplo, a listagem dos ativos utiliza o Location Service para transformar `locationId` no nome da localização.
-
-Quando o serviço está indisponível, a aplicação principal retorna:
-
-```text
-503 Service Unavailable
-```
-
-com uma mensagem controlada.
-
-Operações que não necessitam consultar o Location Service podem continuar funcionando normalmente.
-
----
-
-## 5. A funcionalidade realmente precisa permanecer como serviço independente?
-
-Não necessariamente.
-
-Para o tamanho atual da aplicação, manter `Location` dentro do monólito também seria uma solução válida e mais simples operacionalmente.
-
-A separação passa a fazer mais sentido caso:
-
-- localização seja reutilizada por outros sistemas;
-- possua evolução independente;
-- necessite de escalabilidade própria;
-- seja mantida por outra equipe;
-- tenha regras de negócio próprias mais complexas.
-
-Portanto, a criação de um microsserviço deve representar uma decisão arquitetural baseada nas necessidades do sistema, e não apenas uma escolha tecnológica.
-
----
-
-# Requisitos da Etapa 2 contemplados
+# Requisitos da Etapa 3 contemplados
 
 A versão atual demonstra:
 
-- aplicação principal e serviço independente;
-- responsabilidade clara para o Location Service;
-- projetos Spring Boot executados separadamente;
-- API REST própria do serviço;
-- DTOs como contrato de comunicação;
-- documentação OpenAPI / Swagger;
-- OpenFeign na aplicação principal;
-- comunicação HTTP entre aplicações;
-- endereço do serviço configurado externamente;
-- tratamento de `404` remoto;
-- tratamento de indisponibilidade com `503`;
-- bancos de dados independentes;
-- testes isolados do serviço;
-- testes de integração;
-- testes com serviço indisponível;
-- reflexão arquitetural sobre a adoção de microsserviços.
+- revisão das configurações;
+- profiles `dev` e `prod`;
+- externalização das configurações;
+- utilização de variáveis de ambiente;
+- substituição do H2 por PostgreSQL;
+- banco independente para cada serviço;
+- ausência de acesso direto ao banco de outro serviço;
+- Spring Cloud Config Server;
+- configuração centralizada;
+- Dockerfile para a aplicação principal;
+- Dockerfile para o Location Service;
+- Dockerfile para o Config Server;
+- PostgreSQL em containers;
+- volumes para persistência;
+- Docker Compose;
+- rede entre containers;
+- comunicação sem utilização de `localhost` entre containers;
+- health checks;
+- execução integrada da solução.
 
 ---
 
-# Marco da Etapa 2
+# Tags do projeto
 
-Ao concluir a Etapa 2 da disciplina atual, a versão deve ser registrada no Git utilizando a tag:
+Os marcos da disciplina são identificados através de tags Git.
 
 ```text
+etapa-1
 etapa-2
+etapa-3
 ```
 
-Esse marco representa o primeiro momento em que a solução possui aplicações independentes comunicando-se através da rede.
+## etapa-1
+
+Representa a reorganização arquitetural da aplicação.
+
+## etapa-2
+
+Representa a extração do Location Service e a introdução da comunicação entre aplicações via OpenFeign.
+
+## etapa-3
+
+Representa a versão preparada para execução Cloud Native, incluindo:
+
+- configurações externas;
+- Profiles;
+- Config Server;
+- PostgreSQL;
+- Docker;
+- Docker Compose.
+
+---
+
+# Marco da Etapa 3
+
+Ao concluir esta etapa, registrar:
+
+```bash
+git tag etapa-3
+```
+
+e enviar a tag:
+
+```bash
+git push origin etapa-3
+```
+
+A tag representa a versão da solução preparada para execução integrada e configurada externamente.
 
 ---
 

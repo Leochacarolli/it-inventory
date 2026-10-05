@@ -37,6 +37,13 @@ public class Loader implements CommandLineRunner {
     @Override
     public void run(String... args) {
 
+        if (!assetService.getAllAssets().isEmpty()) {
+            System.out.println(
+                    "IT Inventory já possui dados cadastrados. Carga inicial ignorada."
+            );
+            return;
+        }
+
         // Listas utilizadas nos relacionamentos locais
         List<AssetModel> notebookModels = new ArrayList<>();
         List<AssetModel> desktopModels = new ArrayList<>();

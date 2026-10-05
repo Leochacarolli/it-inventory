@@ -1,0 +1,18 @@
+server:
+  port: ${SERVER_PORT:8080}
+
+spring:
+  datasource:
+    url: ${DB_URL:jdbc:postgresql://inventory-db:5432/itinventory}
+    username: ${DB_USERNAME}
+    password: ${DB_PASSWORD}
+    driver-class-name: org.postgresql.Driver
+
+  jpa:
+    hibernate:
+      ddl-auto: update
+    show-sql: false
+
+services:
+  location:
+    url: ${LOCATION_SERVICE_URL:http://location-service:8081}

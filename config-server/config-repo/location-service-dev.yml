@@ -1,0 +1,14 @@
+server:
+  port: 8081
+
+spring:
+  datasource:
+    url: ${DB_URL:jdbc:postgresql://localhost:5433/locationdb}
+    username: ${DB_USERNAME:location}
+    password: ${DB_PASSWORD:location123}
+    driver-class-name: org.postgresql.Driver
+
+  jpa:
+    hibernate:
+      ddl-auto: update
+    show-sql: true

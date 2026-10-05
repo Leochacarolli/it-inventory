@@ -2,21 +2,8 @@ spring:
   application:
     name: it-inventory
 
-  datasource:
-    url: jdbc:h2:mem:itinventory
-    driver-class-name: org.h2.Driver
-    username: sa
-    password:
+  profiles:
+    active: ${SPRING_PROFILES_ACTIVE:dev}
 
-  jpa:
-    hibernate:
-      ddl-auto: update
-    show-sql: true
-
-  h2:
-    console:
-      enabled: true
-
-services:
-  location:
-    url: http://localhost:8081
+  config:
+    import: configserver:${CONFIG_SERVER_URL:http://localhost:8888}

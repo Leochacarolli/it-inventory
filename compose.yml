@@ -1,0 +1,167 @@
+services:
+
+  inventory-db:
+    image: postgres:17-alpine
+    container_name: inventory-db
+
+    environment:
+      POSTGRES_DB: ${INVENTORY_DB_NAME}
+      POSTGRES_USER: ${INVENTORY_DB_USER}
+      POSTGRES_PASSWORD: ${INVENTORY_DB_PASSWORD}
+
+    ports:
+      - "5432:5432"
+
+    volumes:
+      - inventory-db-data:/var/lib/postgresql/data
+
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready -U ${INVENTORY_DB_USER} -d ${INVENTORY_DB_NAME}"]
+      interval: 5s
+      timeout: 5s
+      retries: 10
+
+    networks:
+      - it-inventory-network
+
+
+  location-db:
+    image: postgres:17-alpine
+    container_name: location-db
+
+    environment:
+      POSTGRES_DB: ${LOCATION_DB_NAME}
+      POSTGRES_USER: ${LOCATION_DB_USER}
+      POSTGRES_PASSWORD: ${LOCATION_DB_PASSWORD}
+
+    ports:
+      - "5433:5432"
+
+    volumes:
+      - location-db-data:/var/lib/postgresql/data
+
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready -U ${LOCATION_DB_USER} -d ${LOCATION_DB_NAME}"]
+      interval: 5s
+      timeout: 5s
+      retries: 10
+
+    networks:
+      - it-inventory-network
+
+
+  config-server:
+    build:
+      context: ./config-server
+      dockerfile: Dockerfile
+
+    container_name: config-server
+
+    environment:
+      SERVER_PORT: 8888
+      CONFIG_REPO_LOCATION: file:/config-repo
+
+    ports:
+      - "8888:8888"
+
+    volumes:
+      - ./config-server/config-repo:/config-repo:ro
+
+    healthcheck:
+      test: ["CMD-SHELL", "bash -c '</dev/tcp/localhost/8888'"]
+      interval: 5s
+      timeout: 5s
+      retries: 20
+
+    networks:
+      - it-inventory-network
+
+
+  location-service:
+    build:
+      context: ./location-service
+      dockerfile: Dockerfile
+
+    container_name: location-service
+
+    environment:
+      SPRING_PROFILES_ACTIVE: prod
+      CONFIG_SERVER_URL: http://config-server:8888
+
+      SERVER_PORT: 8081
+
+      DB_URL: jdbc:postgresql://location-db:5432/${LOCATION_DB_NAME}
+      DB_USERNAME: ${LOCATION_DB_USER}
+      DB_PASSWORD: ${LOCATION_DB_PASSWORD}
+
+    ports:
+      - "8081:8081"
+
+    depends_on:
+      location-db:
+        condition: service_healthy
+      config-server:
+        condition: service_healthy
+
+    healthcheck:
+      test: ["CMD-SHELL", "bash -c '</dev/tcp/localhost/8081'"]
+      interval: 5s
+      timeout: 5s
+      retries: 20
+
+    restart: on-failure
+
+    networks:
+      - it-inventory-network
+
+
+  it-inventory:
+    build:
+      context: .
+      dockerfile: Dockerfile
+
+    container_name: it-inventory
+
+    environment:
+      SPRING_PROFILES_ACTIVE: prod
+      CONFIG_SERVER_URL: http://config-server:8888
+
+      SERVER_PORT: 8080
+
+      DB_URL: jdbc:postgresql://inventory-db:5432/${INVENTORY_DB_NAME}
+      DB_USERNAME: ${INVENTORY_DB_USER}
+      DB_PASSWORD: ${INVENTORY_DB_PASSWORD}
+
+      LOCATION_SERVICE_URL: http://location-service:8081
+
+    ports:
+      - "8080:8080"
+
+    depends_on:
+      inventory-db:
+        condition: service_healthy
+      config-server:
+        condition: service_healthy
+      location-service:
+        condition: service_healthy
+
+    healthcheck:
+      test: ["CMD-SHELL", "bash -c '</dev/tcp/localhost/8080'"]
+      interval: 5s
+      timeout: 5s
+      retries: 20
+
+    restart: on-failure
+
+    networks:
+      - it-inventory-network
+
+
+volumes:
+  inventory-db-data:
+  location-db-data:
+
+
+networks:
+  it-inventory-network:
+    driver: bridge
