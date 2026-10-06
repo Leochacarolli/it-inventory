@@ -50,6 +50,33 @@ services:
       - it-inventory-network
 
 
+  rabbitmq:
+    image: rabbitmq:4-management-alpine
+    container_name: rabbitmq
+
+    environment:
+      RABBITMQ_DEFAULT_USER: ${RABBITMQ_USER}
+      RABBITMQ_DEFAULT_PASS: ${RABBITMQ_PASSWORD}
+
+    ports:
+      - "5672:5672"
+      - "15672:15672"
+
+    volumes:
+      - rabbitmq-data:/var/lib/rabbitmq
+
+    healthcheck:
+      test: ["CMD", "rabbitmq-diagnostics", "-q", "ping"]
+      interval: 5s
+      timeout: 5s
+      retries: 20
+
+    restart: on-failure
+
+    networks:
+      - it-inventory-network
+
+
   config-server:
     build:
       context: ./config-server
@@ -115,6 +142,29 @@ services:
       - it-inventory-network
 
 
+  activity-service:
+    build:
+      context: ./activity-service
+      dockerfile: Dockerfile
+
+    container_name: activity-service
+
+    environment:
+      RABBITMQ_HOST: rabbitmq
+      RABBITMQ_PORT: 5672
+      RABBITMQ_USER: ${RABBITMQ_USER}
+      RABBITMQ_PASSWORD: ${RABBITMQ_PASSWORD}
+
+    depends_on:
+      rabbitmq:
+        condition: service_healthy
+
+    restart: on-failure
+
+    networks:
+      - it-inventory-network
+
+
   it-inventory:
     build:
       context: .
@@ -134,6 +184,11 @@ services:
 
       LOCATION_SERVICE_URL: http://location-service:8081
 
+      RABBITMQ_HOST: rabbitmq
+      RABBITMQ_PORT: 5672
+      RABBITMQ_USER: ${RABBITMQ_USER}
+      RABBITMQ_PASSWORD: ${RABBITMQ_PASSWORD}
+
     ports:
       - "8080:8080"
 
@@ -143,6 +198,8 @@ services:
       config-server:
         condition: service_healthy
       location-service:
+        condition: service_healthy
+      rabbitmq:
         condition: service_healthy
 
     healthcheck:
@@ -160,6 +217,7 @@ services:
 volumes:
   inventory-db-data:
   location-db-data:
+  rabbitmq-data:
 
 
 networks:

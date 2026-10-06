@@ -13,6 +13,16 @@ spring:
       ddl-auto: update
     show-sql: false
 
+  rabbitmq:
+    host: ${RABBITMQ_HOST:rabbitmq}
+    port: ${RABBITMQ_PORT:5672}
+    username: ${RABBITMQ_USER}
+    password: ${RABBITMQ_PASSWORD}
+
+  batch:
+    jdbc:
+      initialize-schema: always
+
 services:
   location:
     url: ${LOCATION_SERVICE_URL:http://location-service:8081}

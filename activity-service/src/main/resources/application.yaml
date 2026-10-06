@@ -1,0 +1,9 @@
+spring:
+  application:
+    name: activity-service
+
+  rabbitmq:
+    host: ${RABBITMQ_HOST:localhost}
+    port: ${RABBITMQ_PORT:5672}
+    username: ${RABBITMQ_USER:inventory}
+    password: ${RABBITMQ_PASSWORD:inventory123}

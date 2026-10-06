@@ -13,6 +13,8 @@ import br.com.posjava.leochacarolli.it_inventory.location.client.LocationClient;
 import br.com.posjava.leochacarolli.it_inventory.location.client.LocationClientResponseDTO;
 import br.com.posjava.leochacarolli.it_inventory.location.client.exception.LocationServiceUnavailableException;
 import br.com.posjava.leochacarolli.it_inventory.location.client.exception.LocationNotFoundException;
+import br.com.posjava.leochacarolli.it_inventory.messaging.AssetCreatedEvent;
+import br.com.posjava.leochacarolli.it_inventory.messaging.AssetEventPublisher;
 import feign.FeignException;
 import feign.RetryableException;
 
@@ -24,11 +26,13 @@ public class AssetService {
     private final AssetRepository assetRepository;
     private final AssetModelService assetModelService;
     private final LocationClient locationClient;
+    private final AssetEventPublisher assetEventPublisher;
 
-    public AssetService(AssetRepository assetRepository, AssetModelService assetModelService, LocationClient locationClient) {
+    public AssetService(AssetRepository assetRepository, AssetModelService assetModelService, LocationClient locationClient, AssetEventPublisher assetEventPublisher) {
         this.assetRepository = assetRepository;
         this.assetModelService = assetModelService;
         this.locationClient = locationClient;
+        this.assetEventPublisher = assetEventPublisher;
     }
 
     public Asset createAsset(AssetRequestDTO request) {
@@ -54,6 +58,15 @@ public class AssetService {
         );
 
         addAsset(asset);
+
+        assetEventPublisher.publishAssetCreated(
+                new AssetCreatedEvent(
+                        "ASSET_CREATED",
+                        asset.getId(),
+                        asset.getName(),
+                        asset.getLocationId()
+                )
+        );
 
         return asset;
     }

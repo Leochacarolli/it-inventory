@@ -1,284 +1,219 @@
-# IT Inventory
+# IT Inventory API
 
-API REST desenvolvida como projeto da Pós-Graduação em Engenharia de Software com Java.
+API REST desenvolvida em Java com Spring Boot para gerenciamento de ativos de TI.
 
-O **IT Inventory** é uma aplicação para gerenciamento de ativos de TI que vem sendo evoluída de forma incremental ao longo das disciplinas, passando por organização arquitetural, comunicação entre microsserviços e, atualmente, práticas de configuração externa e execução Cloud Native.
+O projeto foi desenvolvido de forma evolutiva durante a disciplina, passando por diferentes etapas de arquitetura, persistência, comunicação entre serviços, configuração externa, containerização, mensageria e processamento em lote.
 
-Na arquitetura atual, a solução possui duas aplicações de domínio independentes:
+## Repositório
 
-- **IT Inventory** — aplicação principal responsável pelo gerenciamento dos ativos;
-- **Location Service** — serviço independente responsável pelo gerenciamento das localizações.
+GitHub:
 
-Além delas, a solução utiliza um **Spring Cloud Config Server** para centralização das configurações e bancos PostgreSQL independentes para cada serviço.
-
----
-
-# Objetivo
-
-O **IT Inventory** é uma solução para gerenciamento de ativos de TI.
-
-O domínio contempla:
-
-- ativos;
-- modelos de ativos;
-- categorias;
-- fabricantes;
-- localizações.
-
-A aplicação principal permite:
-
-- cadastrar ativos;
-- consultar ativos;
-- atualizar ativos;
-- remover ativos;
-- filtrar por status;
-- ordenar por nome;
-- pesquisar por nome.
-
-As informações de localização são mantidas por um serviço independente e acessadas pela aplicação principal através de comunicação HTTP utilizando OpenFeign.
+https://github.com/Leochacarolli/it-inventory
 
 ---
 
-# Arquitetura atual
+# Visão geral
 
-Ao final da Etapa 3, a solução possui a seguinte arquitetura:
+O sistema possui como principal responsabilidade o gerenciamento de ativos de TI, permitindo cadastrar, consultar, atualizar e remover ativos.
 
-```text
-                         Config Server :8888
-                          /           \
-                         ↓             ↓
-              IT Inventory :8080   Location Service :8081
-                     ↓                     ↓
-             PostgreSQL Inventory   PostgreSQL Location
-```
+Ao longo das etapas, a aplicação evoluiu de uma implementação orientada a objetos com armazenamento em memória para uma arquitetura distribuída composta por:
 
-Quando executada através do Docker Compose:
-
-```text
-Docker Compose
-│
-├── config-server
-│      └── porta 8888
-│
-├── it-inventory
-│      ├── porta 8080
-│      └── PostgreSQL → inventory-db
-│
-├── location-service
-│      ├── porta 8081
-│      └── PostgreSQL → location-db
-│
-├── inventory-db
-│
-└── location-db
-```
-
-A comunicação entre containers ocorre através da rede criada pelo Docker Compose.
-
-Por esse motivo, os serviços não utilizam `localhost` para comunicação interna.
-
-Exemplos:
-
-```text
-http://config-server:8888
-http://location-service:8081
-
-jdbc:postgresql://inventory-db:5432/itinventory
-jdbc:postgresql://location-db:5432/locationdb
-```
-
----
-
-# Organização do projeto
-
-A estrutura principal é:
-
-```text
-it-inventory/
-│
-├── config-server/
-│   ├── config-repo/
-│   │   ├── it-inventory-dev.yml
-│   │   ├── it-inventory-prod.yml
-│   │   ├── location-service-dev.yml
-│   │   └── location-service-prod.yml
-│   │
-│   ├── src/
-│   ├── Dockerfile
-│   └── pom.xml
-│
-├── location-service/
-│   ├── src/
-│   ├── Dockerfile
-│   └── pom.xml
-│
-├── postman/
-│   ├── it-inventory.postman_collection.json
-│   ├── it-inventory-service-unavailable.postman_collection.json
-│   └── README-testes-postman.md
-│
-├── src/
-│   └── main/
-│       ├── java/
-│       └── resources/
-│
-├── Dockerfile
-├── compose.yml
-├── .env.example
-├── pom.xml
-└── README.md
-```
-
----
-
-# Aplicação principal — IT Inventory
-
-A aplicação principal continua responsável pelas funcionalidades relacionadas ao inventário.
-
-Sua estrutura é organizada por domínio.
-
-```text
-it_inventory
-├── asset
-│   ├── controller
-│   ├── dto
-│   ├── exception
-│   ├── model
-│   ├── repository
-│   └── service
-│
-├── catalog
-│   ├── exception
-│   ├── model
-│   ├── repository
-│   └── service
-│
-├── location
-│   └── client
-│
-├── shared
-│   ├── exception
-│   └── model
-│
-└── config
-```
-
-A aplicação principal não possui mais uma entidade JPA `Location`.
-
-O ativo mantém apenas:
-
-```text
-locationId
-```
-
-e utiliza o Location Service para recuperar as informações relacionadas à localização.
-
----
-
-# Location Service
-
-O **Location Service** é uma aplicação Spring Boot independente.
-
-Sua responsabilidade é gerenciar as localizações utilizadas pelo inventário.
-
-Exemplos:
-
-```text
-Human Resources
-NOC
-Comercial
-```
-
-Principais componentes:
-
-```text
-Location
-LocationController
-LocationService
-LocationRepository
-LocationRequestDTO
-LocationResponseDTO
-```
-
-O serviço possui:
-
-- API REST própria;
-- banco PostgreSQL próprio;
-- configurações próprias;
-- documentação Swagger;
-- ciclo de execução independente.
-
----
-
-# Comunicação entre aplicações
-
-A comunicação entre o IT Inventory e o Location Service utiliza **Spring Cloud OpenFeign**.
-
-O fluxo é:
-
-```text
-Cliente
-   ↓
-AssetController
-   ↓
-AssetService
-   ↓
-LocationClient
-   ↓
-HTTP
-   ↓
-Location Service
-```
-
-Exemplo:
-
-```text
-Asset.locationId = 1
-        ↓
-LocationClient
-        ↓
-GET /locations/1
-        ↓
-Location Service
-        ↓
-Human Resources
-```
-
-Os Controllers não realizam diretamente a comunicação HTTP.
-
-A responsabilidade permanece na camada de Service e no Feign Client.
+- API principal de inventário;
+- serviço independente de localizações;
+- Config Server;
+- bancos PostgreSQL independentes;
+- RabbitMQ;
+- consumidor assíncrono de eventos;
+- processamento em lote com Spring Batch;
+- execução integrada através de Docker Compose.
 
 ---
 
 # Tecnologias utilizadas
 
 - Java 17
-- Spring Boot 4.1.x
+- Spring Boot
 - Spring MVC
 - Spring Data JPA
-- Hibernate
-- PostgreSQL
-- Bean Validation
+- Spring Validation
 - Spring Cloud OpenFeign
 - Spring Cloud Config
-- Springdoc OpenAPI
-- Swagger UI
-- Maven
+- Spring AMQP
+- RabbitMQ
+- Spring Batch
+- PostgreSQL
 - Docker
 - Docker Compose
+- Maven
 - Postman
-- Git
-- GitHub
+- Git / GitHub
 
 ---
 
-# Persistência independente
+# Arquitetura final
 
-A Etapa 3 substituiu os bancos H2 em memória por bancos PostgreSQL.
+Ao final da Etapa 4, a aplicação possui a seguinte organização:
 
-Cada aplicação possui sua própria persistência.
+```text
+                        Config Server
+                             │
+                 ┌───────────┴───────────┐
+                 │                       │
+                 ▼                       ▼
+          IT Inventory            Location Service
+                 │                       │
+                 ▼                       ▼
+          inventory-db              location-db
+          PostgreSQL                PostgreSQL
 
-## Banco do IT Inventory
+                 │
+                 │ ASSET_CREATED
+                 ▼
+              RabbitMQ
+                 │
+                 ▼
+          Activity Service
+
+
+          manufacturers.csv
+                 │
+                 ▼
+           Spring Batch
+                 │
+       ┌─────────┼─────────┐
+       ▼         ▼         ▼
+     Reader   Processor   Writer
+                           │
+                           ▼
+                  ManufacturerRepository
+                           │
+                           ▼
+                     inventory-db
+```
+
+---
+
+# Componentes da solução
+
+## IT Inventory
+
+Aplicação principal responsável pelo gerenciamento dos ativos.
+
+Principais responsabilidades:
+
+- CRUD de ativos;
+- consulta de modelos e dados de catálogo;
+- comunicação com o Location Service;
+- persistência dos ativos;
+- publicação de eventos no RabbitMQ;
+- execução do processamento Spring Batch.
+
+Porta padrão:
+
+```text
+8080
+```
+
+---
+
+## Location Service
+
+Microsserviço responsável pelas informações de localização.
+
+Exemplos:
+
+- Human Resources;
+- NOC;
+- Comercial.
+
+A aplicação principal não acessa diretamente o banco deste serviço.
+
+A comunicação ocorre através de HTTP utilizando OpenFeign.
+
+Porta padrão:
+
+```text
+8081
+```
+
+---
+
+## Config Server
+
+Responsável por centralizar configurações que podem variar entre os ambientes.
+
+Entre as configurações centralizadas estão:
+
+- portas;
+- URLs dos bancos;
+- credenciais externas;
+- URL do Location Service;
+- configurações do RabbitMQ;
+- configurações específicas dos profiles.
+
+Porta padrão:
+
+```text
+8888
+```
+
+---
+
+## Activity Service
+
+Serviço responsável pelo consumo assíncrono dos eventos relacionados aos ativos.
+
+Atualmente consome o evento:
+
+```text
+ASSET_CREATED
+```
+
+Esse serviço não possui uma API HTTP própria.
+
+Sua responsabilidade é receber mensagens publicadas pela aplicação principal através do RabbitMQ.
+
+---
+
+## RabbitMQ
+
+Broker utilizado para comunicação assíncrona.
+
+Portas:
+
+```text
+5672  -> comunicação AMQP
+15672 -> interface de administração
+```
+
+Estrutura utilizada:
+
+```text
+Exchange:
+asset.exchange
+
+Routing Key:
+asset.created
+
+Queue:
+asset.activity.queue
+```
+
+---
+
+# Bancos de dados
+
+A solução utiliza dois bancos PostgreSQL independentes.
+
+## Inventory Database
+
+Responsável pelos dados pertencentes à aplicação principal.
+
+Porta local:
+
+```text
+5432
+```
 
 Banco:
 
@@ -286,18 +221,17 @@ Banco:
 itinventory
 ```
 
-Principais tabelas:
+---
+
+## Location Database
+
+Responsável exclusivamente pelos dados do Location Service.
+
+Porta local:
 
 ```text
-asset
-asset_model
-category
-manufacturer
+5433
 ```
-
-O banco principal não possui tabela `location`.
-
-## Banco do Location Service
 
 Banco:
 
@@ -305,342 +239,171 @@ Banco:
 locationdb
 ```
 
-Tabela principal:
+Cada serviço possui responsabilidade sobre seus próprios dados.
 
-```text
-location
-```
-
-Isso garante que um serviço não acesse diretamente as tabelas pertencentes ao outro.
-
-A comunicação entre os contextos ocorre exclusivamente pelas interfaces disponibilizadas pelos serviços.
+O IT Inventory não acessa diretamente as tabelas do Location Service.
 
 ---
 
-# PostgreSQL com Docker
-
-Os dois bancos são executados em containers independentes.
-
-## Inventory Database
-
-Execução local:
+# Estrutura do projeto
 
 ```text
-localhost:5432
-```
-
-Dentro da rede Docker:
-
-```text
-inventory-db:5432
-```
-
-## Location Database
-
-Execução local:
-
-```text
-localhost:5433
-```
-
-Dentro da rede Docker:
-
-```text
-location-db:5432
-```
-
-Os bancos utilizam volumes Docker para preservar os dados entre reinicializações dos containers.
-
-```text
-inventory-db-data
-location-db-data
+it-inventory/
+│
+├── activity-service/
+│   ├── src/
+│   ├── pom.xml
+│   └── Dockerfile
+│
+├── config-server/
+│   ├── config-repo/
+│   │   ├── it-inventory-dev.yml
+│   │   ├── it-inventory-prod.yml
+│   │   ├── location-service-dev.yml
+│   │   └── location-service-prod.yml
+│   ├── src/
+│   ├── pom.xml
+│   └── Dockerfile
+│
+├── location-service/
+│   ├── src/
+│   ├── pom.xml
+│   └── Dockerfile
+│
+├── postman/
+│
+├── src/
+│   └── main/
+│       ├── java/
+│       └── resources/
+│           └── batch/
+│               └── manufacturers.csv
+│
+├── .env.example
+├── compose.yml
+├── Dockerfile
+├── pom.xml
+└── README.md
 ```
 
 ---
 
 # Profiles
 
-As aplicações possuem configurações distintas para diferentes ambientes.
-
-Os profiles utilizados são:
-
-```text
-dev
-prod
-```
+A aplicação utiliza profiles diferentes para desenvolvimento e produção.
 
 ## Desenvolvimento
 
-No profile `dev`, são utilizados valores adequados para execução através da IDE.
+Profile:
+
+```text
+dev
+```
+
+Neste ambiente, as aplicações executadas pela IDE utilizam endereços locais.
 
 Exemplos:
 
 ```text
-IT Inventory DB:
-jdbc:postgresql://localhost:5432/itinventory
-
-Location Service DB:
-jdbc:postgresql://localhost:5433/locationdb
+PostgreSQL:
+localhost:5432
 
 Location Service:
-http://localhost:8081
+localhost:8081
+
+RabbitMQ:
+localhost:5672
 ```
 
-## Produção / Containers
+---
 
-No profile `prod`, os serviços utilizam os nomes definidos no Docker Compose.
+## Produção / Docker
+
+Profile:
+
+```text
+prod
+```
+
+Quando as aplicações são executadas através do Docker Compose, a comunicação utiliza os nomes dos serviços da rede Docker.
 
 Exemplos:
 
 ```text
-jdbc:postgresql://inventory-db:5432/itinventory
+inventory-db:5432
 
-jdbc:postgresql://location-db:5432/locationdb
+location-db:5432
 
-http://location-service:8081
+location-service:8081
+
+rabbitmq:5672
+
+config-server:8888
 ```
 
-Dessa forma, a aplicação não precisa ter seu código alterado quando o ambiente muda.
+Não é utilizado `localhost` para comunicação entre containers.
 
 ---
 
 # Variáveis de ambiente
 
-As configurações que podem variar entre ambientes são fornecidas externamente.
+O projeto utiliza variáveis de ambiente para configurações que podem mudar entre ambientes.
 
-Entre as variáveis utilizadas estão:
+O arquivo `.env` não é versionado.
+
+O repositório contém apenas:
 
 ```text
-SPRING_PROFILES_ACTIVE
-
-SERVER_PORT
-
-DB_URL
-DB_USERNAME
-DB_PASSWORD
-
-LOCATION_SERVICE_URL
-
-CONFIG_SERVER_URL
-CONFIG_REPO_LOCATION
+.env.example
 ```
-
-As aplicações utilizam essas variáveis durante a execução.
-
-Exemplo:
-
-```yaml
-spring:
-  datasource:
-    url: ${DB_URL}
-    username: ${DB_USERNAME}
-    password: ${DB_PASSWORD}
-```
-
----
-
-# Arquivo `.env`
-
-O Docker Compose utiliza um arquivo `.env` local para algumas configurações.
 
 Exemplo:
 
 ```env
 INVENTORY_DB_NAME=itinventory
 INVENTORY_DB_USER=itinventory
-INVENTORY_DB_PASSWORD=inventory123
+INVENTORY_DB_PASSWORD=change-me
 
 LOCATION_DB_NAME=locationdb
 LOCATION_DB_USER=location
-LOCATION_DB_PASSWORD=location123
+LOCATION_DB_PASSWORD=change-me
+
+RABBITMQ_USER=inventory
+RABBITMQ_PASSWORD=change-me
 ```
 
-O arquivo `.env` não deve ser versionado.
+Para execução local, crie o `.env` a partir do exemplo:
 
-Por isso ele está incluído no:
-
-```text
-.gitignore
+```powershell
+Copy-Item .env.example .env
 ```
 
-O repositório disponibiliza:
-
-```text
-.env.example
-```
-
-como referência das variáveis necessárias.
+Depois configure os valores desejados.
 
 ---
 
-# Configuração centralizada
+# Execução com Docker Compose
 
-A solução utiliza **Spring Cloud Config Server**.
+## Pré-requisitos
 
-O Config Server é executado na porta:
-
-```text
-8888
-```
-
-As configurações são armazenadas em:
-
-```text
-config-server/config-repo/
-```
-
-Arquivos existentes:
-
-```text
-it-inventory-dev.yml
-it-inventory-prod.yml
-
-location-service-dev.yml
-location-service-prod.yml
-```
+- Java 17
+- Docker Desktop
+- Docker Compose
+- Maven ou Maven Wrapper
 
 ---
 
-# Funcionamento do Config Server
+## 1. Gerar os arquivos JAR
 
-O IT Inventory utiliza:
-
-```text
-spring.application.name = it-inventory
-```
-
-O Location Service utiliza:
-
-```text
-spring.application.name = location-service
-```
-
-Ao iniciar com o profile:
-
-```text
-prod
-```
-
-o IT Inventory consulta:
-
-```text
-http://config-server:8888/it-inventory/prod
-```
-
-e o Location Service consulta:
-
-```text
-http://config-server:8888/location-service/prod
-```
-
-Quando executado pela IDE, o endereço padrão pode ser:
-
-```text
-http://localhost:8888
-```
-
----
-
-# Exemplo de configuração centralizada
-
-Exemplo do IT Inventory em produção:
-
-```yaml
-server:
-  port: ${SERVER_PORT:8080}
-
-spring:
-  datasource:
-    url: ${DB_URL:jdbc:postgresql://inventory-db:5432/itinventory}
-    username: ${DB_USERNAME}
-    password: ${DB_PASSWORD}
-    driver-class-name: org.postgresql.Driver
-
-  jpa:
-    hibernate:
-      ddl-auto: update
-    show-sql: false
-
-services:
-  location:
-    url: ${LOCATION_SERVICE_URL:http://location-service:8081}
-```
-
-Location Service:
-
-```yaml
-server:
-  port: ${SERVER_PORT:8081}
-
-spring:
-  datasource:
-    url: ${DB_URL:jdbc:postgresql://location-db:5432/locationdb}
-    username: ${DB_USERNAME}
-    password: ${DB_PASSWORD}
-    driver-class-name: org.postgresql.Driver
-
-  jpa:
-    hibernate:
-      ddl-auto: update
-    show-sql: false
-```
-
----
-
-# Docker
-
-Cada aplicação Spring Boot possui um `Dockerfile`.
-
-São geradas imagens independentes para:
-
-```text
-it-inventory
-location-service
-config-server
-```
-
-Os Dockerfiles executam os arquivos JAR utilizando Java 17.
-
-Exemplo conceitual:
-
-```dockerfile
-FROM eclipse-temurin:17-jre-jammy
-
-WORKDIR /app
-
-COPY target/*.jar app.jar
-
-ENTRYPOINT ["java", "-jar", "app.jar"]
-```
-
----
-
-# Geração dos arquivos JAR
-
-Antes da construção das imagens, gerar os arquivos JAR.
-
-## IT Inventory
+### IT Inventory
 
 Na raiz:
 
-```bash
-./mvnw package -DskipTests
-```
-
-Windows:
-
 ```powershell
 .\mvnw.cmd package -DskipTests
 ```
 
-## Location Service
-
-```bash
-cd location-service
-./mvnw package -DskipTests
-```
-
-Windows:
+### Location Service
 
 ```powershell
 cd location-service
@@ -648,14 +411,7 @@ cd location-service
 cd ..
 ```
 
-## Config Server
-
-```bash
-cd config-server
-./mvnw package -DskipTests
-```
-
-Windows:
+### Config Server
 
 ```powershell
 cd config-server
@@ -663,491 +419,561 @@ cd config-server
 cd ..
 ```
 
-Os JARs são gerados nas respectivas pastas:
+### Activity Service
 
-```text
-target/
-location-service/target/
-config-server/target/
+```powershell
+cd activity-service
+.\mvnw.cmd package -DskipTests
+cd ..
 ```
 
 ---
 
-# Docker Compose
+## 2. Validar o Compose
 
-Toda a solução pode ser iniciada utilizando:
-
-```bash
-docker compose up --build -d
+```powershell
+docker compose config
 ```
 
-O Docker Compose inicia:
+---
+
+## 3. Construir as imagens
+
+```powershell
+docker compose build
+```
+
+---
+
+## 4. Iniciar a solução
+
+```powershell
+docker compose up -d
+```
+
+---
+
+## 5. Verificar os containers
+
+```powershell
+docker compose ps
+```
+
+Os componentes principais são:
 
 ```text
 config-server
 inventory-db
 location-db
+rabbitmq
 location-service
+activity-service
 it-inventory
 ```
 
-Para verificar o estado:
-
-```bash
-docker compose ps
-```
-
-Exemplo esperado:
-
-```text
-config-server      healthy
-inventory-db       healthy
-location-db        healthy
-location-service   healthy
-it-inventory       healthy
-```
-
 ---
 
-# Rede entre containers
+## 6. Encerrar a solução
 
-O Docker Compose cria uma rede para comunicação entre os componentes.
-
-Exemplo:
-
-```text
-it-inventory-network
-```
-
-Dentro dessa rede, os containers utilizam o nome do serviço como hostname.
-
-Exemplo:
-
-```text
-it-inventory
-       ↓
-http://location-service:8081
-```
-
-Não é utilizado:
-
-```text
-http://localhost:8081
-```
-
-para comunicação entre containers.
-
-O mesmo ocorre com os bancos:
-
-```text
-inventory-db:5432
-location-db:5432
-```
-
----
-
-# Inicialização da solução
-
-## Execução completa com Docker
-
-Primeiro, gerar os JARs das três aplicações.
-
-Depois:
-
-```bash
-docker compose up --build -d
-```
-
-Verificar:
-
-```bash
-docker compose ps
-```
-
-Para visualizar os logs:
-
-```bash
-docker compose logs
-```
-
-ou:
-
-```bash
-docker compose logs -f
-```
-
-Para um serviço específico:
-
-```bash
-docker compose logs it-inventory
-```
-
-```bash
-docker compose logs location-service
-```
-
-```bash
-docker compose logs config-server
-```
-
----
-
-# Parando os containers
-
-Para parar toda a solução:
-
-```bash
+```powershell
 docker compose down
 ```
 
-Os volumes dos bancos são preservados.
+Os volumes dos bancos e do RabbitMQ preservam os dados.
 
-Para remover também os volumes seria necessário utilizar:
+Para remover também os volumes:
 
-```bash
+```powershell
 docker compose down -v
 ```
 
-> O comando com `-v` remove os volumes e, consequentemente, os dados persistidos nos bancos.
-
 ---
 
-# APIs
+# Endpoints principais
 
-## IT Inventory
+## Ativos
 
-Base URL:
-
-```text
-http://localhost:8080
-```
-
-### Assets
-
-| Método | Endpoint | Descrição |
-|---|---|---|
-| GET | `/assets` | Lista todos os ativos |
-| GET | `/assets/{id}` | Busca um ativo por ID |
-| POST | `/assets` | Cadastra um ativo |
-| PUT | `/assets/{id}` | Atualiza um ativo |
-| DELETE | `/assets/{id}` | Remove um ativo |
-| GET | `/assets/active` | Lista ativos ativos |
-| GET | `/assets/inactive` | Lista ativos inativos |
-| GET | `/assets/ordered` | Lista ativos ordenados por nome |
-| GET | `/assets/search?name=HRNT` | Pesquisa ativo pelo nome |
-
----
-
-## Location Service
-
-Base URL:
+Base:
 
 ```text
-http://localhost:8081
+http://localhost:8080/assets
 ```
 
-### Locations
+### Listar todos
 
-| Método | Endpoint | Descrição |
-|---|---|---|
-| GET | `/locations` | Lista as localizações |
-| GET | `/locations/{id}` | Busca localização por ID |
-| POST | `/locations` | Cadastra uma localização |
-
----
-
-# Swagger
-
-## IT Inventory
-
-```text
-http://localhost:8080/swagger-ui/index.html
+```http
+GET /assets
 ```
 
-OpenAPI:
+### Buscar por ID
 
-```text
-http://localhost:8080/v3/api-docs
+```http
+GET /assets/{id}
 ```
 
-## Location Service
+### Criar ativo
 
-```text
-http://localhost:8081/swagger-ui/index.html
+```http
+POST /assets
 ```
-
-OpenAPI:
-
-```text
-http://localhost:8081/v3/api-docs
-```
-
----
-
-# Testando o Config Server
-
-Com os containers em execução:
-
-```bash
-curl http://localhost:8888/it-inventory/prod
-```
-
-Resposta esperada contém:
-
-```text
-it-inventory-prod.yml
-```
-
-Também:
-
-```bash
-curl http://localhost:8888/location-service/prod
-```
-
-Resposta esperada contém:
-
-```text
-location-service-prod.yml
-```
-
----
-
-# Testando a execução integrada
-
-Location Service:
-
-```bash
-curl http://localhost:8081/locations
-```
-
-Resposta esperada contém:
-
-```text
-Human Resources
-NOC
-Comercial
-```
-
-IT Inventory:
-
-```bash
-curl http://localhost:8080/assets
-```
-
-A resposta deverá conter os ativos e os nomes das localizações recuperados através do Location Service.
 
 Exemplo:
 
 ```json
 {
-  "id": 1,
   "active": true,
-  "name": "HRNT01",
-  "serialNumber": "4IJ18H",
-  "purchaseValue": 3000.0,
-  "model": "ThinkPad E14",
-  "location": "Human Resources"
+  "name": "NOTEBOOK01",
+  "serialNumber": "ABC123",
+  "purchaseValue": 3500,
+  "assetModelId": 1,
+  "locationId": 1
 }
 ```
 
----
+### Atualizar ativo
 
-# Persistência dos dados
-
-Os Loaders verificam se já existem registros antes da carga inicial.
-
-Isso evita duplicação de dados quando as aplicações são reiniciadas.
-
-Exemplo conceitual:
-
-```text
-Banco vazio
-    ↓
-Loader executa
-    ↓
-dados iniciais são criados
+```http
+PUT /assets/{id}
 ```
 
-```text
-Banco possui dados
-    ↓
-Loader identifica os registros
-    ↓
-carga inicial é ignorada
+### Remover ativo
+
+```http
+DELETE /assets/{id}
 ```
 
-Isso se tornou necessário após a substituição do H2 pelos bancos PostgreSQL persistentes.
+### Listar ativos ativos
+
+```http
+GET /assets/active
+```
+
+### Listar ativos inativos
+
+```http
+GET /assets/inactive
+```
+
+### Listar ordenados por nome
+
+```http
+GET /assets/ordered
+```
+
+### Buscar por nome
+
+```http
+GET /assets/search?name=NOTEBOOK
+```
 
 ---
 
-# Tratamento de falhas entre serviços
+# Location Service
 
-A aplicação principal trata diferentes situações de comunicação com o Location Service.
-
-## Localização inexistente
+Base:
 
 ```text
-404 Not Found
+http://localhost:8081/locations
+```
+
+### Listar localizações
+
+```http
+GET /locations
+```
+
+### Buscar localização
+
+```http
+GET /locations/{id}
+```
+
+---
+
+# Comunicação síncrona
+
+A consulta de localização de um ativo utiliza comunicação síncrona através de API REST.
+
+Fluxo:
+
+```text
+IT Inventory
+     │
+     │ HTTP / OpenFeign
+     ▼
+Location Service
+```
+
+Ao consultar um ativo, a aplicação principal obtém a localização correspondente através do serviço independente.
+
+Também existe tratamento para indisponibilidade do Location Service.
+
+Quando o serviço não está disponível, a aplicação principal retorna uma resposta tratada informando a indisponibilidade temporária.
+
+---
+
+# Comunicação assíncrona com RabbitMQ
+
+Na Etapa 4 foi implementada comunicação assíncrona para registrar a criação de um ativo.
+
+Quando um novo ativo é criado:
+
+```text
+POST /assets
+     │
+     ▼
+AssetService
+     │
+     ├── salva no PostgreSQL
+     │
+     └── publica ASSET_CREATED
+                │
+                ▼
+            RabbitMQ
+                │
+                ▼
+         Activity Service
+```
+
+Exemplo de mensagem:
+
+```json
+{
+  "eventType": "ASSET_CREATED",
+  "assetId": 6,
+  "assetName": "DOCKERNT01",
+  "locationId": 1
+}
+```
+
+O produtor não precisa esperar o consumidor concluir o processamento.
+
+---
+
+# Teste de indisponibilidade do consumidor
+
+Foi testado o seguinte cenário:
+
+```text
+Activity Service desligado
+        │
+        ▼
+Ativo criado no IT Inventory
+        │
+        ▼
+Mensagem publicada no RabbitMQ
+        │
+        ▼
+Mensagem permanece em:
+asset.activity.queue
+        │
+        ▼
+Ready = 1
+```
+
+Depois o Activity Service foi iniciado.
+
+Resultado:
+
+```text
+Activity Service iniciado
+        │
+        ▼
+consumidor conecta ao RabbitMQ
+        │
+        ▼
+mensagem é processada
+        │
+        ▼
+Ready = 0
+```
+
+Isso demonstra uma diferença importante em relação à comunicação REST.
+
+Na mensageria, a mensagem pode permanecer aguardando até que o consumidor esteja disponível novamente.
+
+---
+
+# Spring Batch
+
+Também foi implementado processamento em lote utilizando Spring Batch.
+
+A funcionalidade escolhida foi:
+
+```text
+Importação de fabricantes através de arquivo CSV
+```
+
+Arquivo:
+
+```text
+src/main/resources/batch/manufacturers.csv
 ```
 
 Exemplo:
 
-```json
-{
-  "status": 404,
-  "error": "Not Found",
-  "message": "Localização não encontrada para o ID: 999"
-}
-```
-
-## Location Service indisponível
-
-```text
-503 Service Unavailable
-```
-
-Exemplo:
-
-```json
-{
-  "status": 503,
-  "error": "Service Unavailable",
-  "message": "O serviço de localizações está temporariamente indisponível"
-}
+```csv
+name,country,active
+HP,USA,true
+Acer,Taiwan,true
+Asus,Taiwan,true
+Samsung,South Korea,true
+Positivo,Brazil,true
 ```
 
 ---
 
-# Testes com Postman
+# Fluxo do Batch
 
-As coleções utilizadas nos testes encontram-se em:
+```text
+manufacturers.csv
+       │
+       ▼
+FlatFileItemReader
+       │
+       ▼
+ManufacturerCsvRow
+       │
+       ▼
+ManufacturerProcessor
+       │
+       ▼
+Manufacturer
+       │
+       ▼
+RepositoryItemWriter
+       │
+       ▼
+ManufacturerRepository
+       │
+       ▼
+PostgreSQL
+```
+
+---
+
+## ItemReader
+
+Responsável pela leitura do arquivo CSV.
+
+O cabeçalho é ignorado e cada linha é convertida para:
+
+```text
+ManufacturerCsvRow
+```
+
+---
+
+## ItemProcessor
+
+Responsável pela aplicação das regras de processamento.
+
+Entre as regras utilizadas:
+
+- remoção de espaços desnecessários;
+- normalização do nome para letras maiúsculas;
+- verificação de fabricante já existente.
+
+Quando o fabricante já existe no banco, o Processor retorna `null` e o registro não segue para escrita.
+
+Isso evita duplicação quando o Job é executado novamente.
+
+---
+
+## ItemWriter
+
+Utiliza:
+
+```text
+ManufacturerRepository
+```
+
+para persistir os fabricantes processados no PostgreSQL da aplicação principal.
+
+---
+
+## Processamento em chunks
+
+O Step foi configurado com:
+
+```java
+chunk(2)
+```
+
+Isso significa que o processamento ocorre em grupos controlados de dois registros.
+
+Exemplo:
+
+```text
+registros 1 e 2
+→ processamento
+→ escrita
+→ commit
+
+registros 3 e 4
+→ processamento
+→ escrita
+→ commit
+
+registro 5
+→ processamento
+→ escrita
+→ commit
+```
+
+---
+
+# Validação do Spring Batch
+
+A execução foi validada através dos logs:
+
+```text
+manufacturerImportJob launched
+
+Executing step:
+manufacturerImportStep
+
+status:
+COMPLETED
+```
+
+Também foi validada a persistência no PostgreSQL.
+
+Exemplo dos fabricantes disponíveis após a importação:
+
+```text
+Dell
+Lenovo
+HP
+ACER
+ASUS
+SAMSUNG
+POSITIVO
+```
+
+Uma nova execução do Job não duplica os fabricantes existentes.
+
+---
+
+# Postman
+
+As collections utilizadas durante o desenvolvimento estão disponíveis em:
 
 ```text
 postman/
 ```
 
-A collection principal testa:
+Elas incluem cenários relacionados a:
 
-- Location Service isoladamente;
-- integração através do OpenFeign;
 - CRUD de ativos;
-- Bean Validation;
-- localização inexistente;
-- filtros;
-- ordenação;
-- pesquisa.
+- consultas;
+- integração com Location Service;
+- tratamento de erros;
+- indisponibilidade do serviço remoto.
 
-Existe também uma collection específica para validar o comportamento quando o Location Service está indisponível.
+---
 
-Resultado esperado:
+# Evolução do projeto
+
+## Etapa 1 — Orientação a Objetos
+
+Objetivo principal:
 
 ```text
-503 Service Unavailable
+Modelo Orientado a Objetos
+```
+
+Foram desenvolvidas as entidades e relacionamentos iniciais do domínio.
+
+Conceitos utilizados:
+
+- classes;
+- encapsulamento;
+- herança;
+- classes abstratas;
+- composição;
+- relacionamentos entre objetos.
+
+Tag:
+
+```text
+etapa-1
 ```
 
 ---
 
-# Evolução arquitetural
+## Etapa 2 — Microsserviços e comunicação
 
-## Etapa 1
+A solução evoluiu para separar a responsabilidade de localizações em um serviço independente.
 
-A aplicação foi reorganizada por domínio.
+Foram introduzidos:
 
-```text
-asset
-catalog
-location
-shared
-```
-
-O objetivo foi melhorar a separação de responsabilidades e identificar candidatos para extração futura.
-
----
-
-## Etapa 2
-
-O gerenciamento de localizações foi extraído para uma aplicação Spring Boot independente.
-
-Antes:
-
-```text
-AssetService
-    ↓
-LocationService
-```
-
-Depois:
-
-```text
-AssetService
-    ↓
-LocationClient
-    ↓ HTTP
-Location Service
-```
-
-Foi introduzido:
-
-- OpenFeign;
-- API REST independente;
-- DTOs de comunicação;
-- tratamento de falhas de rede;
-- execução de aplicações independentes.
-
----
-
-## Etapa 3
-
-A solução foi preparada para execução Cloud Native.
-
-Foram implementados:
-
-- Profiles `dev` e `prod`;
-- variáveis de ambiente;
+- Spring Data JPA;
 - PostgreSQL;
-- persistência independente;
-- Spring Cloud Config Server;
-- configuração centralizada;
-- Dockerfiles;
-- containerização dos bancos;
-- volumes;
-- rede Docker;
-- Docker Compose;
-- execução integrada dos componentes.
+- Location Service;
+- OpenFeign;
+- comunicação HTTP;
+- tratamento de indisponibilidade;
+- independência entre os dados dos serviços.
 
-A solução deixou de depender de configurações fixas relacionadas ao ambiente de execução.
+Tag:
+
+```text
+etapa-2
+```
 
 ---
 
-# Arquitetura final da Etapa 3
+## Etapa 3 — Cloud Native
+
+Nesta etapa foram introduzidos:
+
+- externalização de configurações;
+- profiles `dev` e `prod`;
+- variáveis de ambiente;
+- PostgreSQL em containers;
+- bancos independentes;
+- Spring Cloud Config Server;
+- Dockerfiles;
+- Docker Compose;
+- rede interna entre containers;
+- volumes persistentes.
+
+Tag:
 
 ```text
-                       ┌──────────────────────┐
-                       │    Config Server     │
-                       │        :8888         │
-                       └──────────┬───────────┘
-                                  │
-                    ┌─────────────┴─────────────┐
-                    ↓                           ↓
-       ┌────────────────────────┐   ┌────────────────────────┐
-       │      IT Inventory      │   │    Location Service    │
-       │         :8080          │   │         :8081          │
-       └────────────┬───────────┘   └────────────┬───────────┘
-                    │                            │
-                    ↓                            ↓
-       ┌────────────────────────┐   ┌────────────────────────┐
-       │     inventory-db       │   │      location-db       │
-       │      PostgreSQL        │   │      PostgreSQL        │
-       └────────────────────────┘   └────────────────────────┘
-
-                    IT Inventory
-                          │
-                          │ OpenFeign / HTTP
-                          ↓
-                   Location Service
+etapa-3
 ```
 
-Todos os componentes são coordenados localmente através do Docker Compose.
+---
+
+## Etapa 4 — Mensageria e Batch
+
+A etapa final adicionou:
+
+- RabbitMQ;
+- produtor de mensagens;
+- exchange;
+- routing key;
+- fila;
+- consumidor assíncrono;
+- Activity Service;
+- teste com consumidor indisponível;
+- Spring Batch;
+- processamento CSV;
+- ItemReader;
+- ItemProcessor;
+- ItemWriter;
+- Job;
+- Step;
+- chunks;
+- persistência dos dados processados.
+
+Tag:
+
+```text
+etapa-4
+```
 
 ---
 
@@ -1155,19 +981,15 @@ Todos os componentes são coordenados localmente através do Docker Compose.
 
 ## 1. Quais configurações da aplicação podem variar entre ambientes?
 
-Entre as configurações que podem variar estão:
+Entre as principais configurações estão:
 
-- porta das aplicações;
-- endereço dos bancos de dados;
-- nome dos bancos;
-- usuário dos bancos;
-- senha dos bancos;
+- portas;
+- endereço dos bancos;
+- usuário e senha dos bancos;
 - URL do Location Service;
-- URL do Config Server;
-- profile ativo;
-- configurações específicas de execução.
-
-Esses valores dependem do ambiente onde a solução está sendo executada.
+- endereço do Config Server;
+- endereço do RabbitMQ;
+- profile ativo.
 
 ---
 
@@ -1175,201 +997,209 @@ Esses valores dependem do ambiente onde a solução está sendo executada.
 
 Foram externalizadas:
 
-```text
-SERVER_PORT
-DB_URL
-DB_USERNAME
-DB_PASSWORD
-LOCATION_SERVICE_URL
-CONFIG_SERVER_URL
-SPRING_PROFILES_ACTIVE
-CONFIG_REPO_LOCATION
-```
+- configuração dos bancos PostgreSQL;
+- credenciais;
+- portas;
+- URL do Location Service;
+- URL do Config Server;
+- configurações do RabbitMQ;
+- profile de execução.
 
-Além disso, as configurações dos ambientes `dev` e `prod` são fornecidas pelo Spring Cloud Config Server.
-
-Dessa forma, mudanças relacionadas ao ambiente não exigem alterações no código Java.
+Essas informações podem ser fornecidas através do Config Server e de variáveis de ambiente.
 
 ---
 
 ## 3. Por que um serviço não deve acessar diretamente o banco de outro serviço?
 
-Cada serviço deve ser responsável por seus próprios dados.
+Cada serviço deve ser responsável pelos próprios dados.
 
-Se o IT Inventory acessasse diretamente as tabelas do Location Service, seria criado um forte acoplamento entre as aplicações.
+Se o IT Inventory acessasse diretamente as tabelas do Location Service, os dois serviços ficariam fortemente acoplados à estrutura interna do banco.
 
-Alterações internas no banco do Location Service poderiam quebrar a aplicação principal.
-
-Por isso, a comunicação ocorre através da API disponibilizada pelo serviço:
-
-```text
-IT Inventory
-      ↓ HTTP
-Location Service
-      ↓
-Location Database
-```
-
-A API funciona como contrato entre as aplicações.
+Utilizando uma API, o serviço consumidor depende apenas do contrato disponibilizado pelo outro serviço.
 
 ---
 
 ## 4. Qual problema o Docker resolve no projeto?
 
-O Docker padroniza o ambiente necessário para executar os componentes.
+O Docker padroniza o ambiente de execução.
 
-Sem Docker, seria necessário instalar e configurar manualmente:
+Com ele, as aplicações podem ser executadas utilizando as mesmas versões e configurações independentemente da máquina utilizada.
 
-- PostgreSQL;
-- versões de Java;
-- portas;
-- bancos;
-- dependências de infraestrutura.
-
-Com Docker, cada componente possui um ambiente previsível e reproduzível.
-
-Isso reduz diferenças entre máquinas e facilita a execução da solução.
+Isso reduz diferenças entre ambientes e facilita a reprodução da aplicação.
 
 ---
 
 ## 5. Qual é a função do Docker Compose?
 
-O Docker Compose coordena a execução de múltiplos containers.
+O Docker Compose permite coordenar a execução de vários componentes utilizando um único arquivo.
 
-Neste projeto ele é responsável por iniciar e integrar:
+No projeto ele é responsável por iniciar e conectar:
 
-```text
-Config Server
-IT Inventory
-Location Service
-Inventory Database
-Location Database
-```
-
-Também é responsável por:
-
-- criação da rede;
-- definição das variáveis de ambiente;
-- portas;
-- volumes;
-- dependências entre serviços;
-- health checks.
-
-Com um único comando:
-
-```bash
-docker compose up -d
-```
-
-é possível iniciar a infraestrutura completa.
+- IT Inventory;
+- Location Service;
+- Activity Service;
+- Config Server;
+- RabbitMQ;
+- Inventory Database;
+- Location Database.
 
 ---
 
 ## 6. Qual problema uma configuração centralizada procura resolver?
 
-Em uma arquitetura distribuída, cada aplicação possui diversas configurações.
+A configuração centralizada evita que cada serviço mantenha todas as configurações diretamente dentro do próprio projeto.
 
-Sem centralização, seria necessário manter arquivos de configuração separados em cada projeto e alterar manualmente cada aplicação.
+Com o Config Server, propriedades que variam entre ambientes podem ser centralizadas e distribuídas para as aplicações.
 
-O Config Server cria um local centralizado para essas configurações.
+Isso facilita manutenção e alterações de configuração.
 
-No projeto:
+---
+
+# Reflexão arquitetural — Etapa 4
+
+## 1. Qual operação foi escolhida para comunicação assíncrona?
+
+Foi escolhido o registro da criação de um ativo.
+
+Após o cadastro de um ativo, o IT Inventory publica um evento:
 
 ```text
-Config Server
-      ├── it-inventory-dev
-      ├── it-inventory-prod
-      ├── location-service-dev
-      └── location-service-prod
+ASSET_CREATED
 ```
 
-As aplicações recuperam suas configurações durante a inicialização.
-
-Isso facilita:
-
-- manutenção;
-- organização;
-- separação entre ambientes;
-- redução de configurações duplicadas;
-- alteração de parâmetros sem modificar código Java.
+Esse evento é enviado ao RabbitMQ e posteriormente processado pelo Activity Service.
 
 ---
 
-# Requisitos da Etapa 3 contemplados
+## 2. Por que essa operação não precisa ser concluída durante a requisição original?
 
-A versão atual demonstra:
+O cadastro do ativo é concluído quando o ativo é validado e persistido.
 
-- revisão das configurações;
-- profiles `dev` e `prod`;
-- externalização das configurações;
-- utilização de variáveis de ambiente;
-- substituição do H2 por PostgreSQL;
-- banco independente para cada serviço;
-- ausência de acesso direto ao banco de outro serviço;
-- Spring Cloud Config Server;
-- configuração centralizada;
-- Dockerfile para a aplicação principal;
-- Dockerfile para o Location Service;
-- Dockerfile para o Config Server;
-- PostgreSQL em containers;
-- volumes para persistência;
-- Docker Compose;
-- rede entre containers;
-- comunicação sem utilização de `localhost` entre containers;
-- health checks;
-- execução integrada da solução.
+O registro da atividade não precisa bloquear a resposta HTTP.
+
+Por isso, o processamento pode ocorrer posteriormente através de uma mensagem assíncrona.
 
 ---
 
-# Tags do projeto
+## 3. O que acontece com a mensagem caso o consumidor esteja temporariamente indisponível?
 
-Os marcos da disciplina são identificados através de tags Git.
+A mensagem permanece armazenada na fila:
+
+```text
+asset.activity.queue
+```
+
+Quando o Activity Service volta a ficar disponível, ele se conecta ao RabbitMQ e processa a mensagem que estava aguardando.
+
+---
+
+## 4. Qual funcionalidade foi escolhida para processamento em lote?
+
+Foi escolhida a importação de fabricantes através de um arquivo CSV.
+
+O Spring Batch lê diversos fabricantes, aplica regras de normalização e persistência e grava os dados no banco da aplicação principal.
+
+---
+
+## 5. Por que essa funcionalidade é adequada para Batch?
+
+A importação trabalha com um conjunto de registros que pode ser processado sequencialmente.
+
+Ela não precisa ser executada como uma requisição individual para cada fabricante.
+
+O Spring Batch também permite controlar o processamento através de chunks.
+
+---
+
+## 6. Em quais situações da aplicação seria mais adequado utilizar REST, mensageria ou Batch?
+
+### REST
+
+É mais adequado quando a aplicação precisa de uma resposta imediata.
+
+Exemplo:
+
+```text
+IT Inventory → Location Service
+```
+
+A aplicação precisa saber a localização durante a operação.
+
+### Mensageria
+
+É adequada quando uma operação pode acontecer posteriormente e não precisa bloquear a requisição original.
+
+Exemplo:
+
+```text
+ASSET_CREATED
+```
+
+O registro da atividade pode ocorrer de forma assíncrona.
+
+### Batch
+
+É adequado quando existe um conjunto de registros que precisa ser processado de maneira estruturada.
+
+Exemplo:
+
+```text
+importação de fabricantes através de CSV
+```
+
+---
+
+# Comandos úteis
+
+## Ver containers
+
+```powershell
+docker compose ps
+```
+
+## Visualizar logs do IT Inventory
+
+```powershell
+docker compose logs it-inventory
+```
+
+## Visualizar logs do Activity Service
+
+```powershell
+docker compose logs activity-service
+```
+
+## Acompanhar consumidor em tempo real
+
+```powershell
+docker compose logs -f activity-service
+```
+
+## Verificar fabricantes
+
+```powershell
+docker exec -it inventory-db psql -U itinventory -d itinventory -c "select id, name, country, active from manufacturer order by id;"
+```
+
+---
+
+# Marcos do projeto
+
+As principais versões foram registradas utilizando tags Git:
 
 ```text
 etapa-1
 etapa-2
 etapa-3
+etapa-4
 ```
 
-## etapa-1
-
-Representa a reorganização arquitetural da aplicação.
-
-## etapa-2
-
-Representa a extração do Location Service e a introdução da comunicação entre aplicações via OpenFeign.
-
-## etapa-3
-
-Representa a versão preparada para execução Cloud Native, incluindo:
-
-- configurações externas;
-- Profiles;
-- Config Server;
-- PostgreSQL;
-- Docker;
-- Docker Compose.
-
----
-
-# Marco da Etapa 3
-
-Ao concluir esta etapa, registrar:
-
-```bash
-git tag etapa-3
-```
-
-e enviar a tag:
-
-```bash
-git push origin etapa-3
-```
-
-A tag representa a versão da solução preparada para execução integrada e configurada externamente.
+Cada tag representa um momento específico da evolução da mesma aplicação.
 
 ---
 
 # Autor
 
-Projeto desenvolvido por **Leonardo Chacarolli**.
+**Leonardo Chacarolli**
+
+Projeto desenvolvido como atividade acadêmica da Pós-Graduação em Engenharia de Software com Java.
